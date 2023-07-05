@@ -1,14 +1,14 @@
-import FileEs from "../src/file-es";
+import FileES from "../src/file-es";
 
 describe("file es module tester", () => {
   it("read file.", async () => {
-    const fileEs = new FileEs("");
+    const fileEs = new FileES("");
     const file = await fileEs.readFile("test-project/index.tsx");
     expect(typeof file).toBe("string");
   });
 
   it("read file not exist.", async () => {
-    const fileEs = new FileEs("");
+    const fileEs = new FileES("");
     try {
       await fileEs.readFile("test-project/index.ts");
     } catch (e) {
@@ -19,13 +19,13 @@ describe("file es module tester", () => {
   });
 
   it("parse.", async () => {
-    const fileEs = new FileEs("test-project/index.tsx");
+    const fileEs = new FileES("test-project/index.tsx");
     await fileEs.parse();
     expect(fileEs.ast?.type).toBe("Program");
   });
 
   it('parse import a from "./App"', () => {
-    const fileEs = new FileEs("");
+    const fileEs = new FileES("");
     fileEs.ast = fileEs.astParse(`
     import a from "./App";
     `);
@@ -34,7 +34,7 @@ describe("file es module tester", () => {
   });
 
   it('parse import { a } from "./App"', () => {
-    const fileEs = new FileEs("");
+    const fileEs = new FileES("");
     fileEs.ast = fileEs.astParse(`
     import { a } from "./App";
     `);
@@ -46,7 +46,7 @@ describe("file es module tester", () => {
   });
 
   it('parse import type a from "./App"', () => {
-    const fileEs = new FileEs("");
+    const fileEs = new FileES("");
     fileEs.ast = fileEs.astParse(`
     import type a from "./App";
     `);
@@ -55,7 +55,7 @@ describe("file es module tester", () => {
   });
 
   it("parse export type App", () => {
-    const fileEs = new FileEs("");
+    const fileEs = new FileES("");
     fileEs.ast = fileEs.astParse(`
     export type App = string;
     `);
@@ -65,7 +65,7 @@ describe("file es module tester", () => {
   });
 
   it("parse export default App", () => {
-    const fileEs = new FileEs("");
+    const fileEs = new FileES("");
     fileEs.ast = fileEs.astParse(`
     export default App;
     `);
@@ -77,7 +77,7 @@ describe("file es module tester", () => {
   });
 
   it('parse export {default as App, useAppContext} from  "./App"', () => {
-    const fileEs = new FileEs("");
+    const fileEs = new FileES("");
     fileEs.ast = fileEs.astParse(`
     export {default as App, useAppContext} from  "./App";
     `);
@@ -92,7 +92,7 @@ describe("file es module tester", () => {
   });
 
   it('parse export * from  "./App"', () => {
-    const fileEs = new FileEs("");
+    const fileEs = new FileES("");
     fileEs.ast = fileEs.astParse(`
     export * from "./App";
     `);
@@ -101,7 +101,7 @@ describe("file es module tester", () => {
   });
 
   it('parse export * as App from  "./App"', () => {
-    const fileEs = new FileEs("");
+    const fileEs = new FileES("");
     fileEs.ast = fileEs.astParse(`
     export * as App from "./App";
     `);
@@ -113,7 +113,7 @@ describe("file es module tester", () => {
   });
 
   it("parse export { App, Bpp }", () => {
-    const fileEs = new FileEs("");
+    const fileEs = new FileES("");
     fileEs.ast = fileEs.astParse(`
     export { App, Bpp };
     `);
