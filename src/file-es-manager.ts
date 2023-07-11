@@ -6,12 +6,16 @@ interface FileESManagerInterface {
   fileES?: FileES;
   terminalImportList: FileES[];
   parse(): Promise<void>;
-  walkTree(filename: string, name: string, source: string): Promise<boolean | undefined>;
+  walkTree(
+    filename: string,
+    name: string,
+    source: string
+  ): Promise<boolean | undefined>;
 }
 class FileESManager implements FileESManagerInterface {
   filename: string;
   fileES?: FileES;
-  terminalImportList: FileES[] = []
+  terminalImportList: FileES[] = [];
 
   constructor(filename: string) {
     this.filename = filename;
@@ -23,12 +27,12 @@ class FileESManager implements FileESManagerInterface {
   }
 
   async getTerminalImportList() {
-    this.fileES?.importList.forEach(importItem => {
-      const { nameList, source } = importItem
+    this.fileES?.importList.forEach((importItem) => {
+      const { nameList, source } = importItem;
       nameList.forEach(async ({ name, alias }) => {
-        await this.walkTree(this.filename, name, source)
-      })
-    })
+        await this.walkTree(this.filename, name, source);
+      });
+    });
   }
 
   async walkTree(
