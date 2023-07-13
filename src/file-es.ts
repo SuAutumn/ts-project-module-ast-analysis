@@ -1,10 +1,10 @@
 import {
-  parse,
-  TSESTreeOptions,
-  TSESTree,
   AST_NODE_TYPES,
+  parse,
+  TSESTree,
+  TSESTreeOptions,
 } from "@typescript-eslint/typescript-estree";
-import * as fsPromise from "node:fs/promises";
+import HandleAstStatement from "./utils/handle-ast-statement";
 
 export interface ImportDataInterface {
   nameList: {
@@ -14,25 +14,25 @@ export interface ImportDataInterface {
   source: string;
 }
 
-export interface ExportDataInterface {
-  nameList?: {
-    name: string;
-    alias?: string;
-  }[];
-  source?: string;
+export interface ExportDataInterface extends Partial<ImportDataInterface> {}
+
+export interface VariableDataInterface {
+  name: string;
 }
 
 export interface ExportFlatDataInterface {
   source?: string;
-  name: string;
+  name?: string;
   alias?: string;
 }
 
 interface FileESInterface {
   readonly filename: string;
   readonly fileContent: string;
-  importList: ImportDataInterface[];
-  exportList: ExportDataInterface[];
+  readonly importList: ImportDataInterface[];
+  readonly exportList: ExportDataInterface[];
+  readonly variableList: VariableDataInterface[];
+  readonly hs: HandleAstStatement;
   parse(content?: string): void;
   ast: TSESTree.Program | null;
 }
@@ -42,12 +42,19 @@ type ExportDeclaration =
   | TSESTree.ExportDefaultDeclaration
   | TSESTree.ExportNamedDeclaration;
 
+type VariableDeclaration =
+  | TSESTree.VariableDeclaration
+  | TSESTree.FunctionDeclaration
+  | TSESTree.ClassDeclaration;
+
 class FileES implements FileESInterface {
   readonly filename: string;
   readonly fileContent: string;
   ast: TSESTree.Program;
   exportList: ExportDataInterface[] = [];
   importList: ImportDataInterface[] = [];
+  variableList: VariableDataInterface[] = [];
+  hs = new HandleAstStatement();
 
   constructor(options: { filename: string; fileContent: string }) {
     this.filename = options.filename;
@@ -55,6 +62,48 @@ class FileES implements FileESInterface {
     this.ast = this.parse();
     this.importList = this.getImportList();
     this.exportList = this.getExportList();
+    this.variableList = this.getVariableList();
+  }
+
+  getVariableList() {
+    const variableList = [] as VariableDataInterface[];
+    const types = [
+      AST_NODE_TYPES.VariableDeclaration,
+      AST_NODE_TYPES.ClassDeclaration,
+      AST_NODE_TYPES.FunctionDeclaration,
+    ];
+    const declarations = this.ast.body.filter((s) =>
+      types.includes(s.type)
+    ) as VariableDeclaration[];
+
+    declarations.forEach((d) => {
+      switch (d.type) {
+        case AST_NODE_TYPES.VariableDeclaration:
+          d.declarations.forEach((item) => {
+            let name = this.hs.handleBindingName(item.id);
+            if (typeof name === "string") {
+              variableList.push({ name });
+            } else {
+              name = name.flat(Infinity);
+              name.forEach((n) => {
+                variableList.push({ name: n });
+              });
+            }
+          });
+          break;
+        case AST_NODE_TYPES.ClassDeclaration:
+          variableList.push({
+            name: this.hs.handleClassDeclaration(d) || "",
+          });
+          break;
+        case AST_NODE_TYPES.FunctionDeclaration:
+          variableList.push({
+            name: this.hs.handleFunctionDeclaration(d) || "",
+          });
+          break;
+      }
+    });
+    return variableList;
   }
 
   parse(content?: string, options?: TSESTreeOptions) {
@@ -101,12 +150,15 @@ class FileES implements FileESInterface {
   }
 
   getExportDeclaration() {
+    const types = [
+      AST_NODE_TYPES.ExportAllDeclaration,
+      AST_NODE_TYPES.ExportDefaultDeclaration,
+      AST_NODE_TYPES.ExportNamedDeclaration,
+    ];
     return this.ast.body.filter(
-      (statement) =>
-        (statement.type === AST_NODE_TYPES.ExportAllDeclaration ||
-          statement.type === AST_NODE_TYPES.ExportDefaultDeclaration ||
-          statement.type === AST_NODE_TYPES.ExportNamedDeclaration) &&
-        statement.exportKind === "value"
+      (s) =>
+        types.includes(s.type) &&
+        (s as ExportDeclaration).exportKind === "value"
     ) as ExportDeclaration[];
   }
 
@@ -159,24 +211,42 @@ class FileES implements FileESInterface {
     }
   }
 
-  getFlatExportList() {
-    return this.exportList.reduce((previousValue, currentValue) => {
-      currentValue.nameList?.forEach((item) => {
-        previousValue.push({
-          source: currentValue.source,
-          name: item.name,
-          alias: item.alias,
+  getFlatImportOrExportList(
+    list: { source?: string; nameList?: { name?: string; alias?: string }[] }[]
+  ) {
+    return list.reduce((pre, cur) => {
+      if (cur.nameList && cur.nameList.length > 0) {
+        cur.nameList.forEach((item) => {
+          pre.push({
+            source: cur.source,
+            name: item.name,
+            alias: item.alias,
+          });
         });
-      });
-      return previousValue;
+      } else if (cur.source) {
+        pre.push({ source: cur.source });
+      }
+      return pre;
     }, [] as ExportFlatDataInterface[]);
   }
 
   getExportByName(name: string) {
-    return this.getFlatExportList().find(
+    return this.getFlatImportOrExportList(this.exportList).find(
       (item) => name === item.alias || name === item.name
     );
   }
+
+  getImportByName(name: string) {
+    return this.getFlatImportOrExportList(this.importList).find(
+      (item) => name === item.alias || name === item.name
+    );
+  }
+
+  getVariableByName(name: string) {
+    return this.variableList.find((v) => v.name === name);
+  }
+
+  getImplicitImportList() {}
 }
 
 export default FileES;

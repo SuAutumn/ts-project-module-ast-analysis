@@ -1,11 +1,12 @@
 import FileES from "../src/file-es";
-import { parse } from "@typescript-eslint/typescript-estree";
 import readFile from "../src/utils/read-file";
 
 describe("file es module tester", () => {
   const filename = "test-project/index.tsx";
 
   const importDefaultDeclaration = `import a from "./App";`;
+  const importNamespaceDeclaration = `import * as a from "./App"`;
+  const importEffectDeclaration = `import "./App"`;
   const importDeclaration = `import { a } from "./App";`;
   const importTypeDeclaration = `import type a from "./App";`;
   const exportTypeDeclaration = `export type App = string;`;
@@ -14,6 +15,13 @@ describe("file es module tester", () => {
   const exportAllAliasDeclaration = `export * as App from "./App";`;
   const exportDefaultDeclaration = `export default App;`;
   const exportDeclaration = ` export { App, Bpp };`;
+  const variableDeclaration = `
+    const a = 1;
+    const [arrayPatter, c = 1, { d }, ...rest] = b;
+    const {objectPatter, b} = a;
+    function functionA() {};
+    class classA {};
+  `;
 
   it(`Read ${filename} file.`, async () => {
     const file = await readFile(filename);
@@ -25,7 +33,7 @@ describe("file es module tester", () => {
     p.abort();
     return p
       .then((res) => {
-        console.log(res);
+        expect(res).toThrowError();
       })
       .catch((e) => {
         expect(e.code).toBe("ABORT_ERR");
@@ -34,7 +42,7 @@ describe("file es module tester", () => {
 
   it("Read not exist file .", async () => {
     try {
-      const fileContent = await readFile("a.js");
+      await readFile("a.js");
     } catch (e) {
       expect(() => {
         throw e;
@@ -57,9 +65,23 @@ describe("file es module tester", () => {
     expect(list).toMatchObject({ source: "./App", nameList: [{ name: "a" }] });
   });
 
+  it(`Parse ${importNamespaceDeclaration}`, () => {
+    const f = new FileES({ filename, fileContent: importNamespaceDeclaration });
+    const { importList } = f;
+    expect(importList).toMatchObject([
+      { source: "./App", nameList: [{ name: "*", alias: "a" }] },
+    ]);
+  });
+
+  it(`Parse ${importEffectDeclaration}`, () => {
+    const f = new FileES({ filename, fileContent: importEffectDeclaration });
+    const { importList } = f;
+    expect(importList).toMatchObject([{ source: "./App", nameList: [] }]);
+  });
+
   it(`Parse ${importDeclaration}`, () => {
-    const fileEs = new FileES({ fileContent: importDeclaration, filename: "" });
-    const [list] = fileEs.importList;
+    const f = new FileES({ fileContent: importDeclaration, filename: "" });
+    const [list] = f.importList;
     expect(list).toMatchObject({
       source: "./App",
       nameList: [{ name: "a", alias: "a" }],
@@ -142,8 +164,18 @@ describe("file es module tester", () => {
 
   it("Test getFlatExportList method.", async () => {
     const fileEs = new FileES({ filename: "", fileContent: exportDeclaration });
-    const flatList = fileEs.getFlatExportList();
-    console.log(flatList);
+    const flatList = fileEs.getFlatImportOrExportList(fileEs.exportList);
     expect(flatList.length).toBe(2);
+  });
+
+  it("Test getExportByName method.", () => {
+    const file = new FileES({ filename: "", fileContent: exportDeclaration });
+    const item = file.getExportByName("App");
+    expect(item).toMatchObject({ name: "App", alias: "App" });
+  });
+
+  it(`Parse variableDeclaration`, () => {
+    const f = new FileES({ filename: "", fileContent: variableDeclaration });
+    console.log(f.variableList);
   });
 });
