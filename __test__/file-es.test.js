@@ -136,7 +136,7 @@ describe("file es module tester", () => {
       fileContent: exportAllDeclaration,
     });
     const [list] = fileEs.exportList;
-    expect(list).toMatchObject({ source: "./App" });
+    expect(list).toMatchObject({ source: "./App", nameList: [{ name: "*" }] });
   });
 
   it(`Parse ${exportAllAliasDeclaration}`, () => {

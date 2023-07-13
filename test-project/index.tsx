@@ -1,6 +1,6 @@
 import { Input, Button } from "./components";
 import CardLayout from "./card";
-import * as c from "./components";
+import { Table } from "./components";
 
 const App = () => {
   return (
@@ -8,6 +8,7 @@ const App = () => {
       <div>App</div>
       <Input />
       <Button />
+      <Table />
     </CardLayout>
   );
 };

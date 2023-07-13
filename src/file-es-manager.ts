@@ -1,8 +1,7 @@
-import FileES, { ExportDataInterface, ImportDataInterface } from "./file-es";
+import FileES from "./file-es";
 import * as path from "path";
 import readFile from "./utils/read-file";
 import * as fs from "fs";
-import FileEs from "./file-es";
 
 interface FileESManagerInterface {
   filename: string;
@@ -28,6 +27,7 @@ class FileESManager implements FileESManagerInterface {
     if (fs.existsSync(filename)) {
       return filename;
     }
+    console.log(`${filename} not exist.`);
   }
 
   getFilenameLikeModuleResolution(filename: string) {
@@ -41,6 +41,7 @@ class FileESManager implements FileESManagerInterface {
         return f;
       }
     }
+    console.log(`${filename} not exist.`);
   }
 
   async createFileES(filename: string) {
@@ -74,6 +75,7 @@ class FileESManager implements FileESManagerInterface {
   async walkTree(filename: string, name?: string): Promise<void> {
     const childFileES = await this.createFileES(filename);
     if (name === undefined) {
+      /** 发起walkTree */
       this.updateTerminalImportList(childFileES);
       const list = childFileES.getFlatImportOrExportList(
         childFileES.importList
@@ -102,44 +104,16 @@ class FileESManager implements FileESManagerInterface {
         await this.walkTreeNext(filename, importItem.source!, name);
         return;
       }
-      const variableItem = childFileES.getVariableByName(name);
-      if (variableItem) {
-        this.updateTerminalImportList(childFileES);
-      }
-      const implicitItem = 1;
+      await this.walkTree(childFileES.filename);
+      return;
     }
-    // if (!exportItem) {
-    //   const implicitExportItem = this.findImplicitExport(name, childFileES);
-    //   if (implicitExportItem) {
-    //     let index = 0;
-    //     while (implicitExportItem.length > index) {
-    //       const isFound = await this.walkTree(
-    //         childFileES.filename,
-    //         name,
-    //         implicitExportItem[index].source!
-    //       );
-    //       if (isFound) break;
-    //       index++;
-    //     }
-    //   }
-    // } else {
-    //   if (exportItem.source === undefined) {
-    //     const importItem = this.findImportByExport(name, childFileES);
-    //     if (importItem) {
-    //       await this.walkTree(childFileES.filename, name, importItem.source);
-    //     } else {
-    //       this.terminalImportList.push(childFileES);
-    //       return true;
-    //     }
-    //   } else {
-    //     await this.walkTree(childFileES.filename, name, exportItem.source);
-    //   }
-    // }
-  }
-  findImplicitExport(name: string, fileES: FileES) {
-    return fileES.exportList.filter(
-      (exportItem) => exportItem.source && exportItem.nameList === undefined
-    );
+    const implicitExportList = childFileES.getImplicitExportList();
+    if (implicitExportList.length > 0) {
+      for (let i = 0; i < implicitExportList.length; i++) {
+        await this.walkTreeNext(filename, implicitExportList[i].source!, name);
+      }
+      return;
+    }
   }
 }
 

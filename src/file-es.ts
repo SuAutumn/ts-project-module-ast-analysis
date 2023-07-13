@@ -246,7 +246,11 @@ class FileES implements FileESInterface {
     return this.variableList.find((v) => v.name === name);
   }
 
-  getImplicitImportList() {}
+  getImplicitExportList() {
+    return this.getFlatImportOrExportList(this.exportList).filter((item) => {
+      return item.source && item.name === "*" && !item.alias;
+    });
+  }
 }
 
 export default FileES;
