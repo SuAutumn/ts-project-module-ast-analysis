@@ -13,6 +13,8 @@ class FileESManager implements FileESManagerInterface {
   terminalImportList: FileES[] = [];
   private cache: { [x: string]: FileES } = {};
 
+  static SUPPORTED_EXT = [".js", ".jsx", ".ts", ".tsx"];
+
   constructor(filename: string) {
     this.filename = path.resolve(filename);
   }
@@ -20,8 +22,7 @@ class FileESManager implements FileESManagerInterface {
   getFilenameFromAnother(source: string, target: string) {
     const dirname = path.dirname(source);
     const filename = path.resolve(dirname, target);
-    const parsedPath = path.parse(filename);
-    if (parsedPath.ext === "") {
+    if (path.extname(filename) === "") {
       return this.getFilenameLikeModuleResolution(filename);
     }
     if (fs.existsSync(filename)) {
@@ -31,14 +32,15 @@ class FileESManager implements FileESManagerInterface {
   }
 
   getFilenameLikeModuleResolution(filename: string) {
-    const extFiles = [".js", ".ts", ".jsx", ".tsx", ".json"];
-    const childFiles = extFiles.map((ext) => `/index${ext}`);
+    const ext = [...FileESManager.SUPPORTED_EXT, ".json"];
+    const extFiles = ext.map((e) => `${filename}${e}`);
+    const childFiles = ext.map((e) => path.resolve(filename, `./index${e}`));
     const composeFiles = [...extFiles, ...childFiles];
     let i = 0;
     while (i < composeFiles.length) {
-      const f = `${filename}${composeFiles[i++]}`;
-      if (fs.existsSync(f)) {
-        return f;
+      const name = composeFiles[i++];
+      if (fs.existsSync(name)) {
+        return name;
       }
     }
     console.log(`${filename} not exist.`);
@@ -48,21 +50,27 @@ class FileESManager implements FileESManagerInterface {
     if (this.cache[filename]) {
       return this.cache[filename];
     }
-    const fileContent = await readFile(filename);
-    const f = new FileES({ fileContent, filename });
-    this.cache[filename] = f;
-    return f;
+    if (this.astParseable(filename)) {
+      const fileContent = await readFile(filename);
+      const fileES = new FileES({ fileContent, filename });
+      this.cache[filename] = fileES;
+      return fileES;
+    }
   }
 
   async getTerminalImportList() {
-    await this.walkTree(this.filename);
+    await this.walkRoot(this.filename);
   }
 
-  async walkTreeNext(filename: string, source: string, name?: string) {
+  async walkTreeNext(filename: string, source: string, name: string) {
     const sourceFilename = this.getFilenameFromAnother(filename, source);
     if (sourceFilename) {
       await this.walkTree(sourceFilename, name);
     }
+  }
+
+  astParseable(filename: string) {
+    return FileESManager.SUPPORTED_EXT.includes(path.extname(filename));
   }
 
   updateTerminalImportList(file: FileES) {
@@ -72,24 +80,33 @@ class FileESManager implements FileESManagerInterface {
     this.terminalImportList.push(file);
   }
 
-  async walkTree(filename: string, name?: string): Promise<void> {
+  async walkRoot(filename: string) {
     const childFileES = await this.createFileES(filename);
-    if (name === undefined) {
-      /** 发起walkTree */
-      this.updateTerminalImportList(childFileES);
-      const list = childFileES.getFlatImportOrExportList(
-        childFileES.importList
-      );
-      for (let i = 0; i < list.length; i++) {
-        const { name, source } = list[i];
-        if (!name || name === "*") {
-          await this.walkTreeNext(filename, source!);
-        } else {
-          await this.walkTreeNext(filename, source!, name);
+
+    if (!childFileES) return;
+
+    const list = childFileES.getFlatImportOrExportList(childFileES.importList);
+    for (let i = 0; i < list.length; i++) {
+      const { name, source } = list[i];
+      if (!name || name === "*") {
+        /**
+         * import "./a" or import * as a from "./a"
+         * 直接当作有副作用的依赖记录
+         */
+        const nextFilename = this.getFilenameFromAnother(filename, source!);
+        if (nextFilename) {
+          const nextFileES = await this.createFileES(nextFilename);
+          if (nextFileES) this.updateTerminalImportList(nextFileES);
         }
+      } else {
+        await this.walkTreeNext(filename, source!, name);
       }
-      return;
     }
+  }
+
+  async walkTree(filename: string, name: string): Promise<void> {
+    const childFileES = await this.createFileES(filename);
+    if (!childFileES) return;
     const { source: exportSource, name: exportName } =
       childFileES.getExportByName(name) || {};
     if (exportSource) {
@@ -104,7 +121,8 @@ class FileESManager implements FileESManagerInterface {
         await this.walkTreeNext(filename, importItem.source!, name);
         return;
       }
-      await this.walkTree(childFileES.filename);
+      this.updateTerminalImportList(childFileES);
+      await this.walkRoot(childFileES.filename);
       return;
     }
     const implicitExportList = childFileES.getImplicitExportList();
