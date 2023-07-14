@@ -50,12 +50,10 @@ class FileESManager implements FileESManagerInterface {
     if (this.cache[filename]) {
       return this.cache[filename];
     }
-    if (this.astParseable(filename)) {
-      const fileContent = await readFile(filename);
-      const fileES = new FileES({ fileContent, filename });
-      this.cache[filename] = fileES;
-      return fileES;
-    }
+    const fileContent = await readFile(filename);
+    const fileES = new FileES({ fileContent, filename });
+    this.cache[filename] = fileES;
+    return fileES;
   }
 
   async getTerminalImportList() {
@@ -83,7 +81,10 @@ class FileESManager implements FileESManagerInterface {
   async walkRoot(filename: string) {
     const childFileES = await this.createFileES(filename);
 
-    if (!childFileES) return;
+    if (!childFileES.ast) {
+      this.updateTerminalImportList(childFileES);
+      return;
+    }
 
     const list = childFileES.getFlatImportOrExportList(childFileES.importList);
     for (let i = 0; i < list.length; i++) {
@@ -106,7 +107,10 @@ class FileESManager implements FileESManagerInterface {
 
   async walkTree(filename: string, name: string): Promise<void> {
     const childFileES = await this.createFileES(filename);
-    if (!childFileES) return;
+    if (!childFileES.ast) {
+      this.updateTerminalImportList(childFileES);
+      return;
+    }
     const { source: exportSource, name: exportName } =
       childFileES.getExportByName(name) || {};
     if (exportSource) {

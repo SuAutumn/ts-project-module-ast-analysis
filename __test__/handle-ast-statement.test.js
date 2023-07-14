@@ -1,5 +1,10 @@
-import { AST_NODE_TYPES, parse } from "@typescript-eslint/typescript-estree";
-import HandleAstStatement from "../src/utils/handle-ast-statement";
+import {
+  AST_NODE_TYPES,
+  parse,
+  TSESTree,
+} from "@typescript-eslint/typescript-estree";
+import handleAstStatement from "../src/utils/handle-ast-statement";
+import filterAstStatement from "../src/utils/filter-ast-statement";
 
 describe("Test handle ast statement.", () => {
   const variableDeclaration = `
@@ -9,20 +14,17 @@ describe("Test handle ast statement.", () => {
   `;
   it("Test VariableDeclaration", () => {
     const ast = parse(variableDeclaration);
-    const h = new HandleAstStatement();
-    const a = ast.body.map((d) => {
-      return d.declarations?.map((item) => {
-        return h.handleBindingName(item.id);
-      });
-    });
-    expect(a.flat(Infinity)).toMatchObject([
-      "a",
-      "a",
-      "c",
-      "d",
-      "rest",
-      "a",
-      "b",
+    const variableDeclarationList = filterAstStatement.filter(ast.body, [
+      AST_NODE_TYPES.VariableDeclaration,
     ]);
+    /** @type string[] */
+    let result = [];
+    variableDeclarationList.forEach((item) => {
+      const nameList = handleAstStatement
+        .handleVariableDeclaratorList(item.declarations)
+        .flat(Infinity);
+      result = [...result, ...nameList];
+    });
+    expect(result).toMatchObject(["a", "a", "c", "d", "rest", "a", "b"]);
   });
 });

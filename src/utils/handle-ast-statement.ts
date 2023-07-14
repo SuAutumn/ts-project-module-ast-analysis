@@ -12,6 +12,14 @@ class HandleAstStatement {
     }
   }
 
+  handleVariableDeclarator(node: TSESTree.VariableDeclarator) {
+    return this.handleBindingName(node.id);
+  }
+
+  handleVariableDeclaratorList(node: TSESTree.VariableDeclarator[]) {
+    return node.map(this.handleVariableDeclarator.bind(this));
+  }
+
   handleClassDeclaration(node: TSESTree.ClassDeclaration) {
     if (node.id) {
       return this.handleIdentifier(node.id);
@@ -90,4 +98,4 @@ class HandleAstStatement {
   }
 }
 
-export default HandleAstStatement;
+export default new HandleAstStatement();

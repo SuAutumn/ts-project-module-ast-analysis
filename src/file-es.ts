@@ -4,7 +4,8 @@ import {
   TSESTree,
   TSESTreeOptions,
 } from "@typescript-eslint/typescript-estree";
-import HandleAstStatement from "./utils/handle-ast-statement";
+import filterAstStatement from "./utils/filter-ast-statement";
+import handleAstStatement from "./utils/handle-ast-statement";
 
 export interface ImportDataInterface {
   nameList: {
@@ -32,7 +33,6 @@ interface FileESInterface {
   readonly importList: ImportDataInterface[];
   readonly exportList: ExportDataInterface[];
   readonly variableList: VariableDataInterface[];
-  readonly hs: HandleAstStatement;
   parse(content?: string): void;
   ast: TSESTree.Program | null;
 }
@@ -42,19 +42,15 @@ type ExportDeclaration =
   | TSESTree.ExportDefaultDeclaration
   | TSESTree.ExportNamedDeclaration;
 
-type VariableDeclaration =
-  | TSESTree.VariableDeclaration
-  | TSESTree.FunctionDeclaration
-  | TSESTree.ClassDeclaration;
-
 class FileES implements FileESInterface {
   readonly filename: string;
   readonly fileContent: string;
-  ast: TSESTree.Program;
+  ast: TSESTree.Program | null;
   exportList: ExportDataInterface[] = [];
   importList: ImportDataInterface[] = [];
   variableList: VariableDataInterface[] = [];
-  hs = new HandleAstStatement();
+  hs = handleAstStatement;
+  filter = filterAstStatement;
 
   constructor(options: { filename: string; fileContent: string }) {
     this.filename = options.filename;
@@ -67,29 +63,16 @@ class FileES implements FileESInterface {
 
   getVariableList() {
     const variableList = [] as VariableDataInterface[];
-    const types = [
-      AST_NODE_TYPES.VariableDeclaration,
-      AST_NODE_TYPES.ClassDeclaration,
-      AST_NODE_TYPES.FunctionDeclaration,
-    ];
-    const declarations = this.ast.body.filter((s) =>
-      types.includes(s.type)
-    ) as VariableDeclaration[];
+
+    const declarations = this.filter.filterVariableDeclaration(this.ast?.body);
 
     declarations.forEach((d) => {
       switch (d.type) {
         case AST_NODE_TYPES.VariableDeclaration:
-          d.declarations.forEach((item) => {
-            let name = this.hs.handleBindingName(item.id);
-            if (typeof name === "string") {
-              variableList.push({ name });
-            } else {
-              name = name.flat(Infinity);
-              name.forEach((n) => {
-                variableList.push({ name: n });
-              });
-            }
-          });
+          const nameList = this.hs
+            .handleVariableDeclaratorList(d.declarations)
+            .flat(Infinity);
+          nameList.forEach((name) => variableList.push({ name }));
           break;
         case AST_NODE_TYPES.ClassDeclaration:
           variableList.push({
@@ -107,17 +90,21 @@ class FileES implements FileESInterface {
   }
 
   parse(content?: string, options?: TSESTreeOptions) {
-    return parse(content || this.fileContent, {
-      comment: false,
-      jsx: /\.[tj]sx$/.test(this.filename),
-      range: true,
-      loggerFn(msg) {
-        if (process.env.NODE_ENV === "development") {
-          console.log(`ast message ${msg}`);
-        }
-      },
-      ...options,
-    });
+    try {
+      return parse(content || this.fileContent, {
+        comment: false,
+        jsx: /\.[tj]sx$/.test(this.filename),
+        range: true,
+        loggerFn(msg) {
+          if (process.env.NODE_ENV === "development") {
+            console.log(`ast message ${msg}`);
+          }
+        },
+        ...options,
+      });
+    } catch (e) {
+      return null;
+    }
   }
 
   getImportList() {
@@ -133,11 +120,7 @@ class FileES implements FileESInterface {
   }
 
   getImportDeclaration() {
-    return this.ast.body.filter(
-      (statement) =>
-        statement.type === AST_NODE_TYPES.ImportDeclaration &&
-        statement.importKind === "value"
-    ) as TSESTree.ImportDeclaration[];
+    return this.filter.filterImportDeclaration(this.ast?.body);
   }
 
   getExportList() {
@@ -150,16 +133,7 @@ class FileES implements FileESInterface {
   }
 
   getExportDeclaration() {
-    const types = [
-      AST_NODE_TYPES.ExportAllDeclaration,
-      AST_NODE_TYPES.ExportDefaultDeclaration,
-      AST_NODE_TYPES.ExportNamedDeclaration,
-    ];
-    return this.ast.body.filter(
-      (s) =>
-        types.includes(s.type) &&
-        (s as ExportDeclaration).exportKind === "value"
-    ) as ExportDeclaration[];
+    return this.filter.filterExportDeclaration(this.ast?.body);
   }
 
   getSpecifier(specifier: TSESTree.ImportClause) {
