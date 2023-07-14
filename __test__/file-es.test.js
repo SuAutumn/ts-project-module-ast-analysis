@@ -1,5 +1,6 @@
 import FileES from "../src/file-es";
 import readFile from "../src/utils/read-file";
+import { AST_NODE_TYPES } from "@typescript-eslint/typescript-estree";
 
 describe("file es module tester", () => {
   const filename = "test-project/index.tsx";
@@ -112,7 +113,26 @@ describe("file es module tester", () => {
       fileContent: exportDefaultDeclaration,
     });
     const [list] = fileEs.exportList;
-    expect(list).toMatchObject({ nameList: [{ name: "App" }] });
+    console.log(list);
+    expect(list).toMatchObject({
+      nameList: [
+        { name: "default", type: AST_NODE_TYPES.ExportDefaultDeclaration },
+      ],
+    });
+  });
+
+  it("Parser default", () => {
+    const fileEs = new FileES({
+      filename: "",
+      fileContent: `
+        import app from "./App";
+        export default App;
+      `,
+    });
+    console.log(
+      JSON.stringify(fileEs.importList),
+      JSON.stringify(fileEs.exportList)
+    );
   });
 
   it(`Parse ${exportDeclarationWithSource}`, () => {

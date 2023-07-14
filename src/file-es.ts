@@ -11,6 +11,7 @@ export interface ImportDataInterface {
   nameList: {
     name: string;
     alias?: string;
+    type: string;
   }[];
   source: string;
 }
@@ -25,6 +26,7 @@ export interface ExportFlatDataInterface {
   source?: string;
   name?: string;
   alias?: string;
+  type?: string;
 }
 
 interface FileESInterface {
@@ -137,57 +139,52 @@ class FileES implements FileESInterface {
   }
 
   getSpecifier(specifier: TSESTree.ImportClause) {
-    switch (specifier.type) {
+    const { type } = specifier;
+    switch (type) {
       case AST_NODE_TYPES.ImportDefaultSpecifier:
         /** import a from "a"  */
         return {
           name: specifier.local.name,
+          type,
         };
       case AST_NODE_TYPES.ImportSpecifier:
         /** import {a as b} from "a" */
         return {
           name: specifier.local.name,
           alias: specifier.imported.name,
+          type,
         };
       case AST_NODE_TYPES.ImportNamespaceSpecifier:
         /** import * as a from "a" */
-        return { name: "*", alias: specifier.local.name };
+        return { name: "*", alias: specifier.local.name, type };
     }
   }
 
   getExportSpecifier(declaration: ExportDeclaration): ExportDataInterface {
-    switch (declaration.type) {
+    const { type } = declaration;
+    switch (type) {
       case AST_NODE_TYPES.ExportAllDeclaration:
         /** export * from "a" */
         return {
           source: declaration.source.value,
-          nameList: [{ name: "*", alias: declaration.exported?.name }],
+          nameList: [{ name: "*", alias: declaration.exported?.name, type }],
         };
       case AST_NODE_TYPES.ExportDefaultDeclaration:
         /** export default const a = "a" */
-        const { declaration: d } = declaration as {
-          declaration: TSESTree.Identifier;
-        };
-        if (d.type !== AST_NODE_TYPES.Identifier) {
-          throw new Error(
-            `${this.filename} export declaration type is not ${AST_NODE_TYPES.Identifier}`
-          );
-        }
-        return { nameList: [{ name: d.name }] };
+        const { declaration: d } = declaration;
+        return { nameList: [{ name: "default", type }] };
       case AST_NODE_TYPES.ExportNamedDeclaration:
         /** export { default as a } from "a" */
         return {
           source: declaration.source?.value,
           nameList: declaration.specifiers.map((s) => {
-            return { name: s.local.name, alias: s.exported.name };
+            return { name: s.local.name, alias: s.exported.name, type };
           }),
         };
     }
   }
 
-  getFlatImportOrExportList(
-    list: { source?: string; nameList?: { name?: string; alias?: string }[] }[]
-  ) {
+  getFlatImportOrExportList(list: ExportDataInterface[]) {
     return list.reduce((pre, cur) => {
       if (cur.nameList && cur.nameList.length > 0) {
         cur.nameList.forEach((item) => {
@@ -195,6 +192,7 @@ class FileES implements FileESInterface {
             source: cur.source,
             name: item.name,
             alias: item.alias,
+            type: item.type,
           });
         });
       } else if (cur.source) {

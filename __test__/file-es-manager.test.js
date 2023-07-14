@@ -24,4 +24,13 @@ describe("File es manager module tester", () => {
     await m.getTerminalImportList();
     console.log(m.terminalImportList.map((f) => f.filename));
   });
+
+  it("Test", async () => {
+    const absFilename = path.resolve(
+      "../../work/we-seeds-pro/src/pages/asset-homepage/index.tsx"
+    );
+    const m = new FileESManager(absFilename);
+    await m.getTerminalImportList();
+    console.log(m.terminalImportList.map((f) => f.filename));
+  });
 });
