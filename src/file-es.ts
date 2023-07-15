@@ -6,12 +6,13 @@ import {
 } from "@typescript-eslint/typescript-estree";
 import filterAstStatement from "./utils/filter-ast-statement";
 import handleAstStatement from "./utils/handle-ast-statement";
+import { is } from "./utils/asset-ast-statement";
 
 export interface ImportDataInterface {
   nameList: {
     name: string;
     alias?: string;
-    type: string;
+    type: AST_NODE_TYPES;
   }[];
   source: string;
 }
@@ -112,7 +113,7 @@ class FileES implements FileESInterface {
   getImportList() {
     const importDeclarations = this.getImportDeclaration();
     return (
-      importDeclarations?.map((declaration) => {
+      importDeclarations.map((declaration) => {
         const nameList = declaration.specifiers.map((s) =>
           this.getSpecifier(s)
         );
@@ -127,18 +128,18 @@ class FileES implements FileESInterface {
 
   getExportList() {
     const exportDeclarations = this.getExportDeclaration();
-    return (
-      exportDeclarations?.map((declaration) => {
-        return this.getExportSpecifier(declaration);
-      }) || []
-    );
+    return exportDeclarations.map((declaration) => {
+      return this.getExportSpecifier(declaration);
+    });
   }
 
   getExportDeclaration() {
     return this.filter.filterExportDeclaration(this.ast?.body);
   }
 
-  getSpecifier(specifier: TSESTree.ImportClause) {
+  getSpecifier(
+    specifier: TSESTree.ImportClause
+  ): ImportDataInterface["nameList"][number] {
     const { type } = specifier;
     switch (type) {
       case AST_NODE_TYPES.ImportDefaultSpecifier:
@@ -171,8 +172,15 @@ class FileES implements FileESInterface {
         };
       case AST_NODE_TYPES.ExportDefaultDeclaration:
         /** export default const a = "a" */
-        const { declaration: d } = declaration;
-        return { nameList: [{ name: "default", type }] };
+        const { declaration: node } = declaration;
+        return {
+          nameList: [
+            {
+              name: is(node, AST_NODE_TYPES.Identifier) ? node.name : "default",
+              type,
+            },
+          ],
+        };
       case AST_NODE_TYPES.ExportNamedDeclaration:
         /** export { default as a } from "a" */
         return {

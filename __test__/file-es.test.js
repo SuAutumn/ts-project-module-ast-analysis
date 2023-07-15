@@ -15,6 +15,7 @@ describe("file es module tester", () => {
   const exportAllDeclaration = `export * from "./App";`;
   const exportAllAliasDeclaration = `export * as App from "./App";`;
   const exportDefaultDeclaration = `export default App;`;
+  const exportDefaultDeclarationCallExpression = `export default App();`;
   const exportDeclaration = ` export { App, Bpp };`;
   const variableDeclaration = `
     const a = 1;
@@ -113,7 +114,6 @@ describe("file es module tester", () => {
       fileContent: exportDefaultDeclaration,
     });
     const [list] = fileEs.exportList;
-    console.log(list);
     expect(list).toMatchObject({
       nameList: [
         { name: "default", type: AST_NODE_TYPES.ExportDefaultDeclaration },
@@ -127,11 +127,13 @@ describe("file es module tester", () => {
       fileContent: `
         import app from "./App";
         export default App;
+        export default wrapper(App);
+        export { default as app } from "./App";
       `,
     });
     console.log(
-      JSON.stringify(fileEs.importList),
-      JSON.stringify(fileEs.exportList)
+      JSON.stringify(fileEs.importList, undefined, "  "),
+      JSON.stringify(fileEs.exportList, undefined, "  ")
     );
   });
 

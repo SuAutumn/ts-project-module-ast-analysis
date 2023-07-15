@@ -22,15 +22,17 @@ describe("File es manager module tester", () => {
     const absFilename = path.resolve(filename);
     const m = new FileESManager(absFilename);
     await m.getTerminalImportList();
-    console.log(m.terminalImportList.map((f) => f.filename));
+    console.log(
+      m.terminalImportList.map((f) => f.filename.replace(process.cwd(), ""))
+    );
   });
 
   it("Test", async () => {
-    const absFilename = path.resolve(
-      "../../work/we-seeds-pro/src/pages/asset-homepage/index.tsx"
-    );
-    const m = new FileESManager(absFilename);
-    await m.getTerminalImportList();
-    console.log(m.terminalImportList.map((f) => f.filename));
+    // const absFilename = path.resolve(
+    //   "../../work/we-seeds-pro/src/pages/asset-homepage/index.tsx"
+    // );
+    // const m = new FileESManager(absFilename);
+    // await m.getTerminalImportList();
+    // console.log(m.terminalImportList.map((f) => f.filename));
   });
 });

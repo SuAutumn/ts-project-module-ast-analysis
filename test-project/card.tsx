@@ -1,7 +1,7 @@
 import React from "react";
 
-const CardLayout: React.FC<{ children: React.ReactNode }> = (props) => {
+const CardLayout: React.ForwardRefRenderFunction<any, { children: React.ReactNode }> = (props, ref) => {
   return <div>card layout{props.children}</div>;
 };
 
-export default CardLayout;
+export default React.forwardRef(CardLayout);

@@ -87,6 +87,7 @@ class FileESManager implements FileESManagerInterface {
     }
 
     const list = childFileES.getFlatImportOrExportList(childFileES.importList);
+
     for (let i = 0; i < list.length; i++) {
       const { name, source } = list[i];
       if (!name || name === "*") {
@@ -108,33 +109,27 @@ class FileESManager implements FileESManagerInterface {
   async walkTree(filename: string, name: string): Promise<void> {
     const childFileES = await this.createFileES(filename);
     if (!childFileES.ast) {
-      this.updateTerminalImportList(childFileES);
-      return;
+      return this.updateTerminalImportList(childFileES);
     }
     const { source: exportSource, name: exportName } =
       childFileES.getExportByName(name) || {};
     if (exportSource) {
-      /** 透传export */
-      await this.walkTreeNext(filename, exportSource, name);
-      return;
+      return await this.walkTreeNext(filename, exportSource, name);
     }
     if (exportName) {
       const importItem = childFileES.getImportByName(exportName);
       if (importItem) {
         /** 透传export */
-        await this.walkTreeNext(filename, importItem.source!, name);
-        return;
+        return await this.walkTreeNext(filename, importItem.source!, name);
       }
       this.updateTerminalImportList(childFileES);
-      await this.walkRoot(childFileES.filename);
-      return;
+      return await this.walkRoot(childFileES.filename);
     }
     const implicitExportList = childFileES.getImplicitExportList();
     if (implicitExportList.length > 0) {
       for (let i = 0; i < implicitExportList.length; i++) {
         await this.walkTreeNext(filename, implicitExportList[i].source!, name);
       }
-      return;
     }
   }
 }
