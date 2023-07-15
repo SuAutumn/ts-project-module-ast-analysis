@@ -112,14 +112,10 @@ class FileES implements FileESInterface {
 
   getImportList() {
     const importDeclarations = this.getImportDeclaration();
-    return (
-      importDeclarations.map((declaration) => {
-        const nameList = declaration.specifiers.map((s) =>
-          this.getSpecifier(s)
-        );
-        return { nameList, source: declaration.source.value };
-      }) || []
-    );
+    return importDeclarations.map((declaration) => {
+      const nameList = declaration.specifiers.map((s) => this.getSpecifier(s));
+      return { nameList, source: declaration.source.value };
+    });
   }
 
   getImportDeclaration() {
@@ -213,6 +209,12 @@ class FileES implements FileESInterface {
   getExportByName(name: string) {
     return this.getFlatImportOrExportList(this.exportList).find(
       (item) => name === item.alias || name === item.name
+    );
+  }
+
+  getDefaultExport() {
+    return this.getFlatImportOrExportList(this.exportList).find(
+      (item) => item.type === AST_NODE_TYPES.ExportDefaultDeclaration
     );
   }
 

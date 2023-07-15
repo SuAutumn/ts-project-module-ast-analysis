@@ -68,16 +68,20 @@ describe("file es module tester", () => {
   });
 
   it(`Parse ${importNamespaceDeclaration}`, () => {
-    const f = new FileES({ filename, fileContent: importNamespaceDeclaration });
-    const { importList } = f;
+    const { importList } = new FileES({
+      filename,
+      fileContent: importNamespaceDeclaration,
+    });
     expect(importList).toMatchObject([
       { source: "./App", nameList: [{ name: "*", alias: "a" }] },
     ]);
   });
 
   it(`Parse ${importEffectDeclaration}`, () => {
-    const f = new FileES({ filename, fileContent: importEffectDeclaration });
-    const { importList } = f;
+    const { importList } = new FileES({
+      filename,
+      fileContent: importEffectDeclaration,
+    });
     expect(importList).toMatchObject([{ source: "./App", nameList: [] }]);
   });
 
@@ -116,7 +120,7 @@ describe("file es module tester", () => {
     const [list] = fileEs.exportList;
     expect(list).toMatchObject({
       nameList: [
-        { name: "default", type: AST_NODE_TYPES.ExportDefaultDeclaration },
+        { name: "App", type: AST_NODE_TYPES.ExportDefaultDeclaration },
       ],
     });
   });
@@ -185,9 +189,21 @@ describe("file es module tester", () => {
   });
 
   it("Test getFlatExportList method.", async () => {
-    const fileEs = new FileES({ filename: "", fileContent: exportDeclaration });
-    const flatList = fileEs.getFlatImportOrExportList(fileEs.exportList);
-    expect(flatList.length).toBe(2);
+    const fileEs = new FileES({
+      filename: "",
+      fileContent: `
+      import "./App";
+      import * as a from "./App";
+      export { App };
+      export default App;
+      export default Wrapper(App);
+    `,
+    });
+    const flatImprtList = fileEs.getFlatImportOrExportList(fileEs.importList);
+    const flatExportList = fileEs.getFlatImportOrExportList(fileEs.exportList);
+    expect(flatImprtList.length).toBe(2);
+    expect(flatExportList.length).toBe(3);
+    console.log(flatImprtList, flatExportList);
   });
 
   it("Test getExportByName method.", () => {

@@ -1,12 +1,22 @@
-import FileES from "./file-es";
+import FileES, { ExportFlatDataInterface } from "./file-es";
 import * as path from "path";
 import readFile from "./utils/read-file";
 import * as fs from "fs";
+import { AST_NODE_TYPES } from "@typescript-eslint/typescript-estree";
 
+type ExportItem = { type: AST_NODE_TYPES; name: string };
 interface FileESManagerInterface {
   filename: string;
+  /** 通过分析导入导出依赖，获得模块的最终文件的依赖 */
   terminalImportList: FileES[];
-  walkTree(filename: string, name: string): Promise<void>;
+  /** 遍历 file export list 元素，查找是否存在name一致的导出 */
+  walkTree(filename: string, exportItem: ExportItem): Promise<void>;
+  /** 检查新的filname是否存在，存在继续walkTree */
+  walkTreeNext(
+    filename: string,
+    source: string,
+    exportItem: ExportItem
+  ): Promise<void>;
 }
 class FileESManager implements FileESManagerInterface {
   filename: string;
@@ -60,10 +70,10 @@ class FileESManager implements FileESManagerInterface {
     await this.walkRoot(this.filename);
   }
 
-  async walkTreeNext(filename: string, source: string, name: string) {
+  async walkTreeNext(filename: string, source: string, exportItem: ExportItem) {
     const sourceFilename = this.getFilenameFromAnother(filename, source);
     if (sourceFilename) {
-      await this.walkTree(sourceFilename, name);
+      await this.walkTree(sourceFilename, exportItem);
     }
   }
 
@@ -78,19 +88,18 @@ class FileESManager implements FileESManagerInterface {
     this.terminalImportList.push(file);
   }
 
-  async walkRoot(filename: string) {
+  async walkRoot(filename: string): Promise<void> {
     const childFileES = await this.createFileES(filename);
 
     if (!childFileES.ast) {
-      this.updateTerminalImportList(childFileES);
-      return;
+      return this.updateTerminalImportList(childFileES);
     }
 
     const list = childFileES.getFlatImportOrExportList(childFileES.importList);
 
     for (let i = 0; i < list.length; i++) {
-      const { name, source } = list[i];
-      if (!name || name === "*") {
+      const { source, type } = list[i];
+      if (!type || type === AST_NODE_TYPES.ImportNamespaceSpecifier) {
         /**
          * import "./a" or import * as a from "./a"
          * 直接当作有副作用的依赖记录
@@ -101,26 +110,44 @@ class FileESManager implements FileESManagerInterface {
           if (nextFileES) this.updateTerminalImportList(nextFileES);
         }
       } else {
-        await this.walkTreeNext(filename, source!, name);
+        await this.walkTreeNext(filename, source!, list[i] as ExportItem);
       }
     }
   }
 
-  async walkTree(filename: string, name: string): Promise<void> {
+  async walkTree(
+    filename: string,
+    exportItem: { name: string; type: AST_NODE_TYPES }
+  ): Promise<void> {
     const childFileES = await this.createFileES(filename);
     if (!childFileES.ast) {
       return this.updateTerminalImportList(childFileES);
     }
-    const { source: exportSource, name: exportName } =
-      childFileES.getExportByName(name) || {};
-    if (exportSource) {
-      return await this.walkTreeNext(filename, exportSource, name);
+    let childExportItem: ExportFlatDataInterface | undefined;
+    if (exportItem.type === AST_NODE_TYPES.ImportDefaultSpecifier) {
+      childExportItem = childFileES.getDefaultExport();
+      if (!childExportItem) {
+        throw new Error(`${childFileES.filename} has not export default.`);
+      }
+    } else {
+      childExportItem = childFileES.getExportByName(exportItem.name);
     }
-    if (exportName) {
-      const importItem = childFileES.getImportByName(exportName);
+    if (childExportItem?.source) {
+      return await this.walkTreeNext(
+        filename,
+        childExportItem.source,
+        exportItem
+      );
+    }
+    if (childExportItem?.name) {
+      const importItem = childFileES.getImportByName(childExportItem.name);
       if (importItem) {
         /** 透传export */
-        return await this.walkTreeNext(filename, importItem.source!, name);
+        return await this.walkTreeNext(
+          filename,
+          importItem.source!,
+          exportItem
+        );
       }
       this.updateTerminalImportList(childFileES);
       return await this.walkRoot(childFileES.filename);
@@ -128,7 +155,11 @@ class FileESManager implements FileESManagerInterface {
     const implicitExportList = childFileES.getImplicitExportList();
     if (implicitExportList.length > 0) {
       for (let i = 0; i < implicitExportList.length; i++) {
-        await this.walkTreeNext(filename, implicitExportList[i].source!, name);
+        await this.walkTreeNext(
+          filename,
+          implicitExportList[i].source!,
+          exportItem
+        );
       }
     }
   }
