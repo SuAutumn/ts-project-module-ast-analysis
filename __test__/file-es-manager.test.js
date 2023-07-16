@@ -44,27 +44,27 @@ describe("File es manager module tester", () => {
     );
   });
 
-  it("Test", async () => {
-    const absFilename = path.resolve(
-      "../../work/we-power/src/router/index.tsx"
-    );
-    const m = new FileESManager(absFilename, {
-      alias: {
-        "@": path.resolve("../../work/we-power/src"),
-      },
-    });
-    await m.getTerminalImportList();
-    const reg = /(?<!\w)t\(("[\w- ]+")\)/g;
-    let tmp = "";
-    m.terminalImportList.forEach((f) => {
-      tmp += `${f.filename}\n`;
-      let regResult = "";
-      while ((regResult = reg.exec(f.fileContent)) !== null) {
-        tmp += `${regResult[1]}\n`;
-      }
-    });
-    fs.writeFileSync("./analysis.json", tmp, {
-      encoding: "utf-8",
-    });
-  });
+  // it("Test", async () => {
+  //   const absFilename = path.resolve(
+  //     "../../work/we-power/src/router/index.tsx"
+  //   );
+  //   const m = new FileESManager(absFilename, {
+  //     alias: {
+  //       "@": path.resolve("../../work/we-power/src"),
+  //     },
+  //   });
+  //   await m.getTerminalImportList();
+  //   const reg = /(?<!\w)t\(("[\w- ]+")\)/g;
+  //   let tmp = "";
+  //   m.terminalImportList.forEach((f) => {
+  //     tmp += `${f.filename}\n`;
+  //     let regResult = "";
+  //     while ((regResult = reg.exec(f.fileContent)) !== null) {
+  //       tmp += `${regResult[1]}\n`;
+  //     }
+  //   });
+  //   fs.writeFileSync("./analysis.json", tmp, {
+  //     encoding: "utf-8",
+  //   });
+  // });
 });
