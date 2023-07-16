@@ -179,12 +179,28 @@ class FileES implements FileESInterface {
         };
       case AST_NODE_TYPES.ExportNamedDeclaration:
         /** export { default as a } from "a" */
-        return {
+        let exportItem: ExportDataInterface = {
           source: declaration.source?.value,
-          nameList: declaration.specifiers.map((s) => {
-            return { name: s.local.name, alias: s.exported.name, type };
-          }),
         };
+        if (declaration.declaration) {
+          const name = this.hs.handleNameExportDeclarations(
+            declaration.declaration
+          );
+          if (typeof name === "string") {
+            exportItem.nameList = [{ name, type }];
+          }
+          if (name instanceof Array) {
+            exportItem.nameList = name.flat(Infinity).map((n: string) => {
+              return { name: n, type };
+            });
+          }
+        }
+        if (declaration.specifiers.length > 0) {
+          exportItem.nameList = declaration.specifiers.map((s) => {
+            return { name: s.local.name, alias: s.exported.name, type };
+          });
+        }
+        return exportItem;
     }
   }
 

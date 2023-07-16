@@ -1,5 +1,6 @@
 import FileESManager from "../src/file-es-manager";
 import * as path from "path";
+import * as fs from "fs";
 
 describe("File es manager module tester", () => {
   const filename = "test-project/index.tsx";
@@ -44,11 +45,26 @@ describe("File es manager module tester", () => {
   });
 
   it("Test", async () => {
-    // const absFilename = path.resolve(
-    //   "../../work/we-seeds-pro/src/pages/asset-homepage/index.tsx"
-    // );
-    // const m = new FileESManager(absFilename);
-    // await m.getTerminalImportList();
-    // console.log(m.terminalImportList.map((f) => f.filename));
+    const absFilename = path.resolve(
+      "../../work/we-seeds-pro/src/pages/asset-homepage/components/card/index.tsx"
+    );
+    const m = new FileESManager(absFilename, {
+      alias: {
+        "@": path.resolve("../../work/we-seeds-pro/src"),
+      },
+    });
+    await m.getTerminalImportList();
+    const result = m.terminalImportList.map((f) => f.filename);
+    console.log(result);
+    fs.writeFile(
+      "./analysis.json",
+      JSON.stringify(result, undefined, "  "),
+      {
+        encoding: "utf-8",
+      },
+      (err) => {
+        console.log(err);
+      }
+    );
   });
 });

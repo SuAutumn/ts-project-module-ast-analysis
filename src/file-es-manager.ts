@@ -48,24 +48,30 @@ class FileESManager implements FileESManagerInterface {
   }
 
   aliasPathHelper(source: string) {
-    if (this.options.alias) {
-      const keys = Object.keys(this.options.alias);
-      for (let i = 0; i < keys.length; i++) {
-        const key = keys[i];
-        const lastChar = key.slice(-1) === "/" ? "" : "/";
-        if (source.startsWith(`${keys[i]}${lastChar}`)) {
-          return source.replace(keys[i], this.options.alias[keys[i]]);
-        }
-      }
+    const key = this.startWithAlias(source);
+    if (key) {
+      return source.replace(key, this.options.alias![key]);
     }
     return source;
   }
 
+  startWithAlias(source: string): false | string {
+    if (this.options.alias) {
+      const keys = Object.keys(this.options.alias);
+      for (const k of keys) {
+        const lastChar = k.slice(-1) === "/" ? "" : "/";
+        if (source.startsWith(`${k}${lastChar}`)) {
+          return k;
+        }
+      }
+    }
+    return false;
+  }
+
   getFilenameFromAnother(source: string, target: string) {
-    const aliasTarget = this.aliasPathHelper(target);
-    if (aliasTarget.startsWith("/") || aliasTarget.startsWith(".")) {
+    if (this.startWithAlias(target) || target.startsWith(".")) {
       const dirname = path.dirname(source);
-      const filename = path.resolve(dirname, aliasTarget);
+      const filename = path.resolve(dirname, this.aliasPathHelper(target));
       if (path.extname(filename) === "") {
         return this.getFilenameLikeModuleResolution(filename);
       }
@@ -75,7 +81,7 @@ class FileESManager implements FileESManagerInterface {
       console.log(`${filename.replace(process.cwd(), "")} not exist.`);
     }
     // from node_modules
-    // console.log(target);
+    //   console.log(target);
   }
 
   getFilenameLikeModuleResolution(filename: string) {
@@ -167,11 +173,13 @@ class FileESManager implements FileESManagerInterface {
       childExportItem = childFileES.getExportByName(exportItem.name);
     }
     if (childExportItem?.source) {
-      return await this.walkTreeNext(
-        filename,
-        childExportItem.source,
-        exportItem
-      );
+      return await this.walkTreeNext(filename, childExportItem.source, {
+        ...childExportItem,
+        type:
+          childExportItem.name === "default"
+            ? AST_NODE_TYPES.ImportDefaultSpecifier
+            : AST_NODE_TYPES.ImportNamespaceSpecifier,
+      } as ExportItem);
     }
     if (childExportItem?.name) {
       const importItem = childFileES.getImportByName(childExportItem.name);
@@ -180,7 +188,7 @@ class FileESManager implements FileESManagerInterface {
         return await this.walkTreeNext(
           filename,
           importItem.source!,
-          exportItem
+          importItem as ExportItem
         );
       }
       this.updateTerminalImportList(childFileES);

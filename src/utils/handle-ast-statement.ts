@@ -12,6 +12,10 @@ class HandleAstStatement {
     }
   }
 
+  handleVariableDeclaration(node: TSESTree.VariableDeclaration) {
+    return this.handleVariableDeclaratorList(node.declarations);
+  }
+
   handleVariableDeclarator(node: TSESTree.VariableDeclarator) {
     return this.handleBindingName(node.id);
   }
@@ -94,6 +98,20 @@ class HandleAstStatement {
         return;
       case AST_NODE_TYPES.RestElement:
         return this.handleRestElement(node);
+    }
+  }
+
+  handleNameExportDeclarations(node: TSESTree.NamedExportDeclarations) {
+    const { type } = node;
+    switch (type) {
+      case AST_NODE_TYPES.ClassDeclaration:
+        return this.handleClassDeclaration(node);
+      case AST_NODE_TYPES.FunctionDeclaration:
+        return this.handleFunctionDeclaration(node);
+      case AST_NODE_TYPES.VariableDeclaration:
+        return this.handleVariableDeclaration(node);
+      default:
+        return;
     }
   }
 }
