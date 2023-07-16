@@ -18,9 +18,25 @@ describe("File es manager module tester", () => {
     expect(name4).toBe(undefined);
   });
 
+  it("Test aliasPathHelper method.", async () => {
+    const absFilename = path.resolve(filename);
+    const manager = new FileESManager(absFilename);
+    const aliasManager = new FileESManager(absFilename, {
+      alias: { "@": "./src" },
+    });
+    expect(aliasManager.aliasPathHelper("@/a/b.js")).toBe("./src/a/b.js");
+    expect(aliasManager.aliasPathHelper("@fake/a/b.js")).toBe("@fake/a/b.js");
+    expect(aliasManager.aliasPathHelper("a/b.js")).toBe("a/b.js");
+    expect(aliasManager.aliasPathHelper("./a/b.js")).toBe("./a/b.js");
+    expect(manager.aliasPathHelper("@/a/b.js")).toBe("@/a/b.js");
+    expect(manager.aliasPathHelper("./a/b.js")).toBe("./a/b.js");
+  });
+
   it("Test walkTree method", async () => {
     const absFilename = path.resolve(filename);
-    const m = new FileESManager(absFilename);
+    const m = new FileESManager(absFilename, {
+      alias: { "@": "./" },
+    });
     await m.getTerminalImportList();
     console.log(
       m.terminalImportList.map((f) => f.filename.replace(process.cwd(), ""))

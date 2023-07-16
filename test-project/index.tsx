@@ -1,7 +1,8 @@
 import React from "react";
 import { Input, Button } from "./components";
-import CardLayout from "./card";
+import CardLayout from "@/card";
 import { Table } from "./components";
+import Png from "./canvas";
 
 const App = () => {
   return (
@@ -10,6 +11,7 @@ const App = () => {
       <Input />
       <Button />
       <Table />
+      <img src={Png} alt="icon" />
     </CardLayout>
   );
 };
