@@ -103,7 +103,10 @@ class FileESManager implements FileESManagerInterface {
     if (fileEsCache.getCacheFileES(filename)) {
       return fileEsCache.getCacheFileES(filename) as FileES;
     }
-    const fileContent = await readFile(filename);
+    let fileContent: string | undefined;
+    if (FileES.isSupportedFile(filename)) {
+      fileContent = await readFile(filename);
+    }
     const fileES = new FileES({ fileContent, filename });
     return fileEsCache.updateCacheFileES(filename, fileES);
   }

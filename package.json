@@ -1,7 +1,8 @@
 {
   "name": "ts-project-module-ast-analysis",
   "version": "1.0.0",
-  "main": "dist/index.js",
+  "main": "dist/src/index.js",
+  "types": "dist/@types",
   "license": "MIT",
   "scripts": {
     "test": "jest",

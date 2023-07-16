@@ -7,6 +7,7 @@ import {
 import filterAstStatement from "./utils/filter-ast-statement";
 import handleAstStatement from "./utils/handle-ast-statement";
 import { is } from "./utils/asset-ast-statement";
+import * as path from "path";
 
 export interface ImportDataInterface {
   nameList: {
@@ -32,7 +33,7 @@ export interface ExportFlatDataInterface {
 
 interface FileESInterface {
   readonly filename: string;
-  readonly fileContent: string;
+  readonly fileContent?: string;
   readonly importList: ImportDataInterface[];
   readonly exportList: ExportDataInterface[];
   readonly variableList: VariableDataInterface[];
@@ -47,21 +48,26 @@ type ExportDeclaration =
 
 class FileES implements FileESInterface {
   readonly filename: string;
-  readonly fileContent: string;
+  readonly fileContent?: string;
   ast: TSESTree.Program | null;
   exportList: ExportDataInterface[] = [];
   importList: ImportDataInterface[] = [];
   variableList: VariableDataInterface[] = [];
   hs = handleAstStatement;
   filter = filterAstStatement;
+  static SUPPORTED_FILE = /\.[jt]sx?$/;
 
-  constructor(options: { filename: string; fileContent: string }) {
+  constructor(options: { filename: string; fileContent?: string }) {
     this.filename = options.filename;
     this.fileContent = options.fileContent;
     this.ast = this.parse();
     this.importList = this.getImportList();
     this.exportList = this.getExportList();
     this.variableList = this.getVariableList();
+  }
+
+  static isSupportedFile(filename: string) {
+    return FileES.SUPPORTED_FILE.test(path.extname(filename));
   }
 
   getVariableList() {
@@ -93,8 +99,10 @@ class FileES implements FileESInterface {
   }
 
   parse(content?: string, options?: TSESTreeOptions) {
+    const c = content || this.fileContent;
+    if (!c) return null;
     try {
-      return parse(content || this.fileContent, {
+      return parse(c, {
         comment: false,
         jsx: /\.[tj]sx$/.test(this.filename),
         range: true,

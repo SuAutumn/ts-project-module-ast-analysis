@@ -46,7 +46,7 @@ describe("File es manager module tester", () => {
 
   it("Test", async () => {
     const absFilename = path.resolve(
-      "../../work/we-power/src/pages/pv-monitor/index.tsx"
+      "../../work/we-power/src/router/index.tsx"
     );
     const m = new FileESManager(absFilename, {
       alias: {
