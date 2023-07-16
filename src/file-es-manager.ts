@@ -4,6 +4,7 @@ import readFile from "./utils/read-file";
 import * as fs from "fs";
 import { AST_NODE_TYPES } from "@typescript-eslint/typescript-estree";
 import * as process from "process";
+import fileEsCache from "./file-es-cache";
 
 type ExportItem = { type: AST_NODE_TYPES; name: string };
 
@@ -26,8 +27,6 @@ class FileESManager implements FileESManagerInterface {
   filename: string;
   terminalImportList: FileES[] = [];
   options: FileESManagerOptions;
-  private cache: { [x: string]: FileES } = {};
-
   static SUPPORTED_EXT = [
     ".js",
     ".jsx",
@@ -101,13 +100,12 @@ class FileESManager implements FileESManagerInterface {
   }
 
   async createFileES(filename: string) {
-    if (this.cache[filename]) {
-      return this.cache[filename];
+    if (fileEsCache.getCacheFileES(filename)) {
+      return fileEsCache.getCacheFileES(filename) as FileES;
     }
     const fileContent = await readFile(filename);
     const fileES = new FileES({ fileContent, filename });
-    this.cache[filename] = fileES;
-    return fileES;
+    return fileEsCache.updateCacheFileES(filename, fileES);
   }
 
   async getTerminalImportList() {
@@ -161,6 +159,7 @@ class FileESManager implements FileESManagerInterface {
   ): Promise<void> {
     const childFileES = await this.createFileES(filename);
     if (!childFileES.ast) {
+      /** 不能被ast的，当作资源文件直接依赖记录 */
       return this.updateTerminalImportList(childFileES);
     }
     let childExportItem: ExportFlatDataInterface | undefined;

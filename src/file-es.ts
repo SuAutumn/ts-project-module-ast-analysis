@@ -224,7 +224,9 @@ class FileES implements FileESInterface {
 
   getExportByName(name: string) {
     return this.getFlatImportOrExportList(this.exportList).find(
-      (item) => name === item.alias || name === item.name
+      (item) =>
+        item.type !== AST_NODE_TYPES.ExportDefaultDeclaration &&
+        (name === item.alias || name === item.name)
     );
   }
 

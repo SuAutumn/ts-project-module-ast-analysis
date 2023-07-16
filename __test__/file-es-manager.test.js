@@ -54,27 +54,17 @@ describe("File es manager module tester", () => {
       },
     });
     await m.getTerminalImportList();
-    const reg = /(?<!\w)t\("[\w- ]+"\)/g;
+    const reg = /(?<!\w)t\(("[\w- ]+")\)/g;
     let tmp = "";
     m.terminalImportList.forEach((f) => {
       tmp += `${f.filename}\n`;
       let regResult = "";
       while ((regResult = reg.exec(f.fileContent)) !== null) {
-        tmp += `${regResult}\n`;
-      }
-      if (/basic-info/.test(f.filename)) {
-        console.log(tmp);
+        tmp += `${regResult[1]}\n`;
       }
     });
-    fs.writeFile(
-      "./analysis.json",
-      tmp,
-      {
-        encoding: "utf-8",
-      },
-      (err) => {
-        console.log(err);
-      }
-    );
+    fs.writeFileSync("./analysis.json", tmp, {
+      encoding: "utf-8",
+    });
   });
 });
