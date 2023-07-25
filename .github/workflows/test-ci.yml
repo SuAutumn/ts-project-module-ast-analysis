@@ -3,9 +3,11 @@
 
 name: Tester CI
 
+run-name: Deploy to ${{ inputs.deploy_target }} by @${{ github.actor }}
+
 on:
   push:
-    branches: [ "develop" ]
+    branches: [ "develop", "release", "main" ]
   pull_request:
     branches: [ "develop" ]
 
