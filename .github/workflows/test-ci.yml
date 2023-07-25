@@ -3,7 +3,7 @@
 
 name: Tester CI
 
-run-name: Deploy to ${{ inputs.deploy_target }} by @${{ github.actor }}
+run-name: Run test by @${{ github.actor }} ${{ github.env }}
 
 on:
   push:
@@ -12,7 +12,7 @@ on:
     branches: [ "develop" ]
 
 jobs:
-  build:
+  test:
 
     runs-on: ubuntu-latest
 
