@@ -1,6 +1,7 @@
 import FileES from "./file-es";
 
 interface Cache<Data, CacheKey> {
+  has(key: CacheKey): boolean;
   get(key: CacheKey): Data | undefined;
   set(key: CacheKey, data: Data): Data;
 }
@@ -12,7 +13,7 @@ class FileESCache implements Cache<FileES, string> {
   private cache: Record<string, FileES> = {};
 
   get(filename: string) {
-    if (this.cache[filename]) return this.cache[filename];
+    if (this.has(filename)) return this.cache[filename];
   }
 
   set(filename: string, fileES: FileES) {
@@ -20,6 +21,10 @@ class FileESCache implements Cache<FileES, string> {
       this.cache[filename] = fileES;
     }
     return fileES;
+  }
+
+  has(filename: string): boolean {
+    return Boolean(this.cache[filename]);
   }
 }
 

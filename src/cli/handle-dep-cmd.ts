@@ -12,6 +12,6 @@ const handleDep = async ({ filename, ...options }: HandleDepProps) => {
     },
   });
   await esManager.getTerminalImportList();
-  console.log(esManager.terminalImportList.map((item) => item.filename));
+  console.log(esManager.flatImportList.map((item) => item.filename));
 };
 export default handleDep;
