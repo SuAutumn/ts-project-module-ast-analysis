@@ -46,6 +46,9 @@ type ExportDeclaration =
   | TSESTree.ExportDefaultDeclaration
   | TSESTree.ExportNamedDeclaration;
 
+/**
+ * 文件描述
+ */
 class FileES implements FileESInterface {
   readonly filename: string;
   readonly fileContent?: string;

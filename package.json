@@ -6,11 +6,12 @@
   "license": "MIT",
   "scripts": {
     "test": "jest",
-    "dev": "node dist/index.js",
+    "dev": "tsc --watch",
     "build": "tsc"
   },
   "dependencies": {
-    "@typescript-eslint/typescript-estree": "^5.60.1"
+    "@typescript-eslint/typescript-estree": "^5.60.1",
+    "yargs": "^17.7.2"
   },
   "devDependencies": {
     "@babel/core": "^7.22.5",

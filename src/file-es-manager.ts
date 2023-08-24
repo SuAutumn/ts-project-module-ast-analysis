@@ -67,7 +67,10 @@ class FileESManager implements FileESManagerInterface {
     return false;
   }
 
-  getFilenameFromAnother(source: string, target: string) {
+  /**
+   * 从当前目录查找目标文件的路径
+   */
+  resolveImportFilename(source: string, target: string) {
     if (this.startWithAlias(target) || target.startsWith(".")) {
       const dirname = path.dirname(source);
       const filename = path.resolve(dirname, this.aliasPathHelper(target));
@@ -100,15 +103,15 @@ class FileESManager implements FileESManagerInterface {
   }
 
   async createFileES(filename: string) {
-    if (fileEsCache.getCacheFileES(filename)) {
-      return fileEsCache.getCacheFileES(filename) as FileES;
+    if (fileEsCache.get(filename)) {
+      return fileEsCache.get(filename) as FileES;
     }
     let fileContent: string | undefined;
     if (FileES.isSupportedFile(filename)) {
       fileContent = await readFile(filename);
     }
     const fileES = new FileES({ fileContent, filename });
-    return fileEsCache.updateCacheFileES(filename, fileES);
+    return fileEsCache.set(filename, fileES);
   }
 
   async getTerminalImportList() {
@@ -116,7 +119,7 @@ class FileESManager implements FileESManagerInterface {
   }
 
   async walkTreeNext(filename: string, source: string, exportItem: ExportItem) {
-    const sourceFilename = this.getFilenameFromAnother(filename, source);
+    const sourceFilename = this.resolveImportFilename(filename, source);
     if (sourceFilename) {
       await this.walkTree(sourceFilename, exportItem);
     }
@@ -145,7 +148,7 @@ class FileESManager implements FileESManagerInterface {
          * import "./a" or import * as a from "./a"
          * 直接当作有副作用的依赖记录
          */
-        const nextFilename = this.getFilenameFromAnother(filename, source!);
+        const nextFilename = this.resolveImportFilename(filename, source!);
         if (nextFilename) {
           const nextFileES = await this.createFileES(nextFilename);
           if (nextFileES) this.updateTerminalImportList(nextFileES);
