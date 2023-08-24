@@ -9,13 +9,13 @@ describe("File es manager module tester", () => {
   it("Test getFilenameByAnother method.", async () => {
     const absFilename = path.resolve(filename);
     const m = new FileESManager(absFilename);
-    const name1 = m.getFilenameFromAnother("a/b/c,js", "a.js");
+    const name1 = m.resolveImportFilename("a/b/c,js", "a.js");
     expect(name1).toBe(undefined);
-    const name2 = m.getFilenameFromAnother(absFilename, "./card");
+    const name2 = m.resolveImportFilename(absFilename, "./card");
     expect(name2).toBe(path.resolve("test-project/card.tsx"));
-    const name3 = m.getFilenameFromAnother(absFilename, "./components");
+    const name3 = m.resolveImportFilename(absFilename, "./components");
     expect(name3).toBe(path.resolve("test-project/components/index.ts"));
-    const name4 = m.getFilenameFromAnother(absFilename, "./card.jsx");
+    const name4 = m.resolveImportFilename(absFilename, "./card.jsx");
     expect(name4).toBe(undefined);
   });
 
@@ -40,7 +40,7 @@ describe("File es manager module tester", () => {
     });
     await m.getTerminalImportList();
     console.log(
-      m.terminalImportList.map((f) => f.filename.replace(process.cwd(), ""))
+      m.flatImportList.map((f) => f.filename.replace(process.cwd(), ""))
     );
   });
 
@@ -56,7 +56,7 @@ describe("File es manager module tester", () => {
   //   await m.getTerminalImportList();
   //   const reg = /(?<!\w)t\(("[\w- ]+")\)/g;
   //   let tmp = "";
-  //   m.terminalImportList.forEach((f) => {
+  //   m.flatImportList.forEach((f) => {
   //     tmp += `${f.filename}\n`;
   //     let regResult = "";
   //     while ((regResult = reg.exec(f.fileContent)) !== null) {

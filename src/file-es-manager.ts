@@ -143,6 +143,7 @@ class FileESManager implements FileESManagerInterface {
   async walkRoot(filename: string): Promise<void> {
     const childFileES = await this.createFileES(filename);
 
+    /** 不可被typescript/estree ast编译的文件，直接存储，e.g: svg png less */
     if (!childFileES.ast) {
       return this.updateFlatImportList(childFileES);
     }
@@ -156,9 +157,9 @@ class FileESManager implements FileESManagerInterface {
          * import "./a" or import * as a from "./a"
          * 直接当作有副作用的依赖记录
          */
-        const nextFilename = this.resolveImportFilename(filename, source!);
-        if (nextFilename) {
-          const nextFileES = await this.createFileES(nextFilename);
+        const importFilename = this.resolveImportFilename(filename, source!);
+        if (importFilename) {
+          const nextFileES = await this.createFileES(importFilename);
           if (nextFileES) this.updateFlatImportList(nextFileES);
         }
       } else {
