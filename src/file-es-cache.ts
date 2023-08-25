@@ -1,10 +1,5 @@
 import FileES from "./file-es";
-
-interface Cache<Data, CacheKey> {
-  has(key: CacheKey): boolean;
-  get(key: CacheKey): Data | undefined;
-  set(key: CacheKey, data: Data): Data;
-}
+import { Cache } from "./dto";
 
 /**
  * 文件缓存容器
