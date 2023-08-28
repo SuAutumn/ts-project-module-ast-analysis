@@ -31,7 +31,7 @@ class FileESPathHelper {
     return source;
   }
 
-  getAliasPath(source: string): string | undefined {
+  private getAliasPath(source: string): string | undefined {
     const aliasList = Object.keys(this.alias);
     for (const item of aliasList) {
       /** 以目录结尾 */
@@ -60,7 +60,7 @@ class FileESPathHelper {
     }
   }
 
-  getSupportedExtFile(filename: string) {
+  private getSupportedExtFile(filename: string) {
     const extFiles = this.supportedExt.map((ext) => `${filename}${ext}`);
     const childFiles = this.supportedExt.map((ext) =>
       path.resolve(filename, `./index${ext}`)

@@ -3,15 +3,13 @@ import * as path from "path";
 import readFile from "./utils/read-file";
 import { AST_NODE_TYPES } from "@typescript-eslint/typescript-estree";
 import fileESCache from "./file-es-cache";
-import { FileESManagerOptions, TreeData } from "./dto";
+import { FileESManagerOptions, TreeData, ExportItem } from "./dto";
 import FileEsPathHelper from "./file-es-path-helper";
-import process from "process";
-
-type ExportItem = { type: AST_NODE_TYPES; name: string };
+import * as process from "process";
 
 interface FileESManagerInterface {
   filename: string;
-  file: FileES | null;
+  file: FileES;
   /** 通过分析导入导出依赖，获得模块的最终文件的依赖 */
   flatImportList: FileES[];
   treeImportList: TreeData<FileES>[];
@@ -36,7 +34,8 @@ class FileESManager implements FileESManagerInterface {
   flatImportList: FileES[] = [];
   treeImportList: TreeData<FileES>[] = [];
   readonly pathHelper: FileEsPathHelper;
-  file: FileES | null = null;
+  // @ts-ignore
+  file: FileES;
   static SUPPORTED_EXT = [
     ".js",
     ".jsx",
@@ -154,7 +153,7 @@ class FileESManager implements FileESManagerInterface {
 
   async walkTree(
     filename: string,
-    exportItem: { name: string; type: AST_NODE_TYPES },
+    exportItem: ExportItem,
     container: TreeData<FileES>[]
   ): Promise<void> {
     const childFileES = await this.createFileES(filename);

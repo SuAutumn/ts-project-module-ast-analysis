@@ -1,6 +1,8 @@
 import { AST_NODE_TYPES } from "@typescript-eslint/typescript-estree";
 import FileESManager from "./file-es-manager";
 import handleAstStatement from "./utils/handle-ast-statement";
+import FileESPathHelper from "./file-es-path-helper";
+import path from "path";
 
 interface Config {
   path: { value: string; type: "Literal" };
@@ -49,13 +51,34 @@ class ReactRouterConfigParser {
   }
 
   handleFile(config: Config[]) {
-    config.forEach((conf) => {
+    config.forEach(async (conf) => {
       if (typeof conf.component !== "string") {
         switch (conf.component.type) {
           case "Identifier":
             const ast = this.getDeclarationAst(conf.component.name);
-            console.log(conf.component, ast?.range);
-            console.log(this.manager.file?.fileContent?.slice(...ast?.range));
+            if (ast) {
+              const rawCode = this.manager.file.fileContent.slice(...ast.range);
+              const rawFilename = rawCode.match(/import\(["'](.+)["']\)/)?.[1];
+              if (rawFilename) {
+                const pathHelper = new FileESPathHelper({
+                  alias: { "@": path.resolve("./src") },
+                  supportedExt: FileESManager.SUPPORTED_EXT,
+                });
+                const filename = pathHelper.resolveImportFilename(
+                  this.manager.filename,
+                  rawFilename
+                );
+                if (filename) {
+                  const manager = new FileESManager(filename, {
+                    alias: { "@": path.resolve("./src") },
+                  });
+                  await manager.getTerminalImportList();
+                  console.log(manager.flatImportList);
+                }
+              }
+            } else {
+              console.log(`Not found ${conf.component.name}`);
+            }
             break;
         }
       }

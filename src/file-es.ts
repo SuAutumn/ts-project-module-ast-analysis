@@ -52,7 +52,7 @@ type ExportDeclaration =
  */
 class FileES implements FileESInterface {
   readonly filename: string;
-  readonly fileContent?: string;
+  readonly fileContent: string;
   ast: TSESTree.Program | null;
   exportList: ExportDataInterface[] = [];
   importList: ImportDataInterface[] = [];
@@ -61,9 +61,9 @@ class FileES implements FileESInterface {
   filter = filterAstStatement;
   static SUPPORTED_FILE = /\.[jt]sx?$/;
 
-  constructor(options: FileESConstructorParams) {
-    this.filename = options.filename;
-    this.fileContent = options.fileContent;
+  constructor({ filename, fileContent = "" }: FileESConstructorParams) {
+    this.filename = filename;
+    this.fileContent = fileContent;
     this.ast = this.parse();
     this.importList = this.getImportList();
     this.exportList = this.getExportList();
