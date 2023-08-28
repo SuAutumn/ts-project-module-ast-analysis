@@ -1,4 +1,5 @@
 import { AST_NODE_TYPES, TSESTree } from "@typescript-eslint/typescript-estree";
+import filterAstStatement from "./filter-ast-statement";
 
 class HandleAstStatement {
   handleBindingName(node: TSESTree.BindingName) {
@@ -39,7 +40,7 @@ class HandleAstStatement {
   }
 
   handleLiteral(node: TSESTree.Literal) {
-    return node.value;
+    return node.raw;
   }
 
   handleRestElement(node: TSESTree.RestElement) {
@@ -47,7 +48,7 @@ class HandleAstStatement {
   }
 
   handleMemberExpression(node: TSESTree.MemberExpression) {
-    throw new Error("Not implement MemberExpression");
+    return `Not handle ${node.type}`;
   }
 
   handleArrayPatter(node: TSESTree.ArrayPattern) {
@@ -69,10 +70,14 @@ class HandleAstStatement {
         return this.handleIdentifier(key);
       case AST_NODE_TYPES.Literal:
         return this.handleLiteral(key);
+      default:
+        return "";
     }
   }
 
-  handleDestructuringPattern(node: TSESTree.DestructuringPattern | null): any {
+  handleDestructuringPattern(
+    node: TSESTree.DestructuringPattern | null
+  ): string | undefined | any[] {
     if (node === null) return;
     switch (node.type) {
       case AST_NODE_TYPES.RestElement:
@@ -92,10 +97,7 @@ class HandleAstStatement {
   handlePropertyOrRestElement(node: TSESTree.Property | TSESTree.RestElement) {
     switch (node.type) {
       case AST_NODE_TYPES.Property:
-        if (!node.computed) {
-          return this.handlePropertyNonComputedName(node);
-        }
-        return;
+        return this.handlePropertyName(node);
       case AST_NODE_TYPES.RestElement:
         return this.handleRestElement(node);
     }
@@ -113,6 +115,130 @@ class HandleAstStatement {
       default:
         return;
     }
+  }
+
+  handlePropertyName(
+    node: TSESTree.PropertyComputedName | TSESTree.PropertyNonComputedName
+  ) {
+    if (!node.computed) {
+      return this.handlePropertyNonComputedName(node);
+    }
+    return "";
+  }
+
+  handleCallExpression(node: TSESTree.CallExpression) {
+    return `Not handle ${node.type}`;
+  }
+
+  handleJSXIdentifier(node: TSESTree.JSXIdentifier) {
+    return node.name;
+  }
+  handleJSXElement(node: TSESTree.JSXElement) {
+    switch (node.openingElement.name.type) {
+      case AST_NODE_TYPES.JSXIdentifier:
+        return this.handleJSXIdentifier(node.openingElement.name);
+      default:
+        return `Not handle ${node.openingElement.name.type}`;
+    }
+  }
+
+  handleBlockStatement(node: TSESTree.BlockStatement) {}
+
+  handleBlockStatementReturn(node: TSESTree.BlockStatement) {
+    const statementReturn = filterAstStatement.filter(node.body, [
+      AST_NODE_TYPES.ReturnStatement,
+    ])[0];
+    if (statementReturn && statementReturn.argument) {
+      switch (statementReturn.argument.type) {
+        case AST_NODE_TYPES.JSXElement:
+          return this.handleJSXElement(statementReturn.argument);
+        default:
+          return `Not handle ${statementReturn.argument.type}`;
+      }
+    }
+  }
+  handleArrayFunctionExpression(node: TSESTree.ArrowFunctionExpression) {
+    switch (node.body.type) {
+      case AST_NODE_TYPES.JSXElement:
+        return this.handleJSXElement(node.body);
+      case AST_NODE_TYPES.BlockStatement:
+        return this.handleBlockStatementReturn(node.body);
+      default:
+        return `Not handle ${node.body.type}`;
+    }
+  }
+
+  handleFunctionExpression(node: TSESTree.FunctionExpression) {
+    switch (node.body.type) {
+      case AST_NODE_TYPES.BlockStatement:
+        return this.handleBlockStatementReturn(node.body);
+      default:
+        return `Not handle ${node.body.type}`;
+    }
+  }
+
+  handlePropertyValue(
+    node: TSESTree.Property["value"]
+  ): string | any[] | Record<string, any> {
+    switch (node.type) {
+      case AST_NODE_TYPES.Identifier:
+        const name = this.handleIdentifier(node);
+        return {
+          type: node.type,
+          name,
+        };
+        break;
+      case AST_NODE_TYPES.Literal:
+        const value = this.handleLiteral(node);
+        return { value, type: node.type };
+      case AST_NODE_TYPES.CallExpression:
+        return this.handleCallExpression(node);
+      case AST_NODE_TYPES.ArrayExpression:
+        return this.handleArrayExpression(node);
+      case AST_NODE_TYPES.ArrayPattern:
+        return this.handleArrayPatter(node);
+      case AST_NODE_TYPES.ArrowFunctionExpression:
+        const body = this.handleArrayFunctionExpression(node);
+        return {
+          type: node.type,
+          body,
+        };
+      case AST_NODE_TYPES.FunctionExpression:
+        const functionBody = this.handleFunctionExpression(node);
+        return {
+          type: node.type,
+          body: functionBody,
+        };
+      default:
+        return `Not handle ${node.type}`;
+    }
+  }
+  handleObjectExpression(node: TSESTree.ObjectExpression) {
+    const obj: Record<string, any> = {};
+    node.properties.forEach((prop) => {
+      switch (prop.type) {
+        case AST_NODE_TYPES.Property:
+          obj[this.handlePropertyName(prop)] = this.handlePropertyValue(
+            prop.value
+          );
+          break;
+        case AST_NODE_TYPES.SpreadElement:
+          break;
+      }
+    });
+    return obj;
+  }
+  handleArrayExpression(node: TSESTree.ArrayExpression): any[] {
+    return node.elements.map((element) => {
+      switch (element?.type) {
+        case AST_NODE_TYPES.ObjectExpression:
+          return this.handleObjectExpression(element);
+        case AST_NODE_TYPES.ArrayExpression:
+          return this.handleArrayExpression(element);
+        default:
+          return `Not handle ${element?.type}`;
+      }
+    });
   }
 }
 

@@ -8,6 +8,7 @@ import filterAstStatement from "./utils/filter-ast-statement";
 import handleAstStatement from "./utils/handle-ast-statement";
 import { is } from "./utils/asset-ast-statement";
 import * as path from "path";
+import { FileESConstructorParams } from "./dto";
 
 export interface ImportDataInterface {
   nameList: {
@@ -60,7 +61,7 @@ class FileES implements FileESInterface {
   filter = filterAstStatement;
   static SUPPORTED_FILE = /\.[jt]sx?$/;
 
-  constructor(options: { filename: string; fileContent?: string }) {
+  constructor(options: FileESConstructorParams) {
     this.filename = options.filename;
     this.fileContent = options.fileContent;
     this.ast = this.parse();

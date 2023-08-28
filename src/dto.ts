@@ -10,3 +10,15 @@ export interface Cache<Data, CacheKey> {
 
   set(key: CacheKey, data: Data): Data;
 }
+
+export interface FileESConstructorParams {
+  filename: string;
+  fileContent?: string;
+}
+
+export type FileESManagerOptions = { alias?: Record<string, string> };
+
+export interface FileESPathHelperConstructorParams {
+  alias?: Record<string, string>;
+  supportedExt?: string[];
+}

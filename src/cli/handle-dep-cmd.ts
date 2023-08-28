@@ -14,10 +14,28 @@ const handleDep = async ({ filename, ...options }: HandleDepProps) => {
     },
   });
   await esManager.getTerminalImportList();
+  // console.log(
+  //   JSON.stringify(logTreeData(esManager.treeImportList), undefined, "  ")
+  // );
   console.log(
-    JSON.stringify(logTreeData(esManager.treeImportList), undefined, "  ")
+    esManager.file?.getDefaultExport(),
+    esManager.file?.getVariableList(),
+    esManager.file?.ast
   );
-  // console.log(esManager.flatImportList.map((item) => item.filename));
+  // matchI18nKeys(esManager.flatImportList);
+};
+
+const matchI18nKeys = (files: FileES[]) => {
+  files.forEach((item) => {
+    const i18nKeyMatcher = /(?<!\w)t\(("[\w- ]+")\)/g;
+    console.log(item.filename);
+    if (item.fileContent) {
+      let match: RegExpExecArray | null;
+      while ((match = i18nKeyMatcher.exec(item.fileContent)) !== null) {
+        console.log(match[1], match[0]);
+      }
+    }
+  });
 };
 
 const logTreeData = (data: TreeData<FileES>[]) => {

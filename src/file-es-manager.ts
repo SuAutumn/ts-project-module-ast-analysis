@@ -1,19 +1,17 @@
 import FileES, { ExportFlatDataInterface } from "./file-es";
 import * as path from "path";
 import readFile from "./utils/read-file";
-import * as fs from "fs";
 import { AST_NODE_TYPES } from "@typescript-eslint/typescript-estree";
-import * as process from "process";
-import fileEsCache from "./file-es-cache";
-import { TreeData } from "./dto";
+import fileESCache from "./file-es-cache";
+import { FileESManagerOptions, TreeData } from "./dto";
+import FileEsPathHelper from "./file-es-path-helper";
+import process from "process";
 
 type ExportItem = { type: AST_NODE_TYPES; name: string };
 
-type FileESManagerOptions = { alias?: Record<string, string> };
-
 interface FileESManagerInterface {
   filename: string;
-  options: FileESManagerOptions;
+  file: FileES | null;
   /** 通过分析导入导出依赖，获得模块的最终文件的依赖 */
   flatImportList: FileES[];
   treeImportList: TreeData<FileES>[];
@@ -37,7 +35,8 @@ class FileESManager implements FileESManagerInterface {
   filename: string;
   flatImportList: FileES[] = [];
   treeImportList: TreeData<FileES>[] = [];
-  options: FileESManagerOptions;
+  readonly pathHelper: FileEsPathHelper;
+  file: FileES | null = null;
   static SUPPORTED_EXT = [
     ".js",
     ".jsx",
@@ -54,75 +53,25 @@ class FileESManager implements FileESManagerInterface {
 
   constructor(filename: string, options: FileESManagerOptions = {}) {
     this.filename = path.resolve(filename);
-    this.options = options;
-  }
-
-  aliasPathHelper(source: string) {
-    const key = this.startWithAlias(source);
-    if (key) {
-      return source.replace(key, this.options.alias![key]);
-    }
-    return source;
-  }
-
-  startWithAlias(source: string): false | string {
-    if (this.options.alias) {
-      const keys = Object.keys(this.options.alias);
-      for (const k of keys) {
-        const lastChar = k.slice(-1) === "/" ? "" : "/";
-        if (source.startsWith(`${k}${lastChar}`)) {
-          return k;
-        }
-      }
-    }
-    return false;
-  }
-
-  /**
-   * 从当前目录查找目标文件的路径
-   */
-  resolveImportFilename(source: string, target: string) {
-    if (this.startWithAlias(target) || target.startsWith(".")) {
-      const dirname = path.dirname(source);
-      const filename = path.resolve(dirname, this.aliasPathHelper(target));
-      if (path.extname(filename) === "") {
-        return this.getFilenameLikeModuleResolution(filename);
-      }
-      if (fs.existsSync(filename)) {
-        return filename;
-      }
-      console.log(`${filename.replace(process.cwd(), "")} not exist.`);
-    }
-    // from node_modules
-    //   console.log(target);
-  }
-
-  getFilenameLikeModuleResolution(filename: string) {
-    const extFiles = FileESManager.SUPPORTED_EXT.map((e) => `${filename}${e}`);
-    const childFiles = FileESManager.SUPPORTED_EXT.map((e) =>
-      path.resolve(filename, `./index${e}`)
-    );
-    const composeFiles = [...extFiles, ...childFiles];
-    let i = 0;
-    while (i < composeFiles.length) {
-      const name = composeFiles[i++];
-      if (fs.existsSync(name)) {
-        return name;
-      }
-    }
-    console.log(`${filename.replace(process.cwd(), "")} not exist.`);
+    this.pathHelper = new FileEsPathHelper({
+      alias: options.alias,
+      supportedExt: FileESManager.SUPPORTED_EXT,
+    });
+    process.nextTick(async () => {
+      this.file = await this.createFileES(this.filename);
+    });
   }
 
   async createFileES(filename: string) {
-    if (fileEsCache.has(filename)) {
-      return fileEsCache.get(filename)!;
+    if (fileESCache.has(filename)) {
+      return fileESCache.get(filename)!;
     }
     let fileContent: string | undefined;
     if (FileES.isSupportedFile(filename)) {
       fileContent = await readFile(filename);
     }
     const fileES = new FileES({ fileContent, filename });
-    return fileEsCache.set(filename, fileES);
+    return fileESCache.set(filename, fileES);
   }
 
   async getTerminalImportList() {
@@ -156,7 +105,10 @@ class FileESManager implements FileESManagerInterface {
     exportItem: ExportItem,
     container: TreeData<FileES>[]
   ) {
-    const sourceFilename = this.resolveImportFilename(filename, source);
+    const sourceFilename = this.pathHelper.resolveImportFilename(
+      filename,
+      source
+    );
     if (sourceFilename) {
       await this.walkTree(sourceFilename, exportItem, container);
     }
@@ -181,7 +133,10 @@ class FileESManager implements FileESManagerInterface {
          * import "./a" or import * as a from "./a"
          * 直接当作有副作用的依赖记录
          */
-        const importFilename = this.resolveImportFilename(filename, source!);
+        const importFilename = this.pathHelper.resolveImportFilename(
+          filename,
+          source!
+        );
         if (importFilename) {
           const nextFileES = await this.createFileES(importFilename);
           if (nextFileES) this.updateImportList(nextFileES, container);
