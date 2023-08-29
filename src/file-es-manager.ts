@@ -1,11 +1,10 @@
 import FileES, { ExportFlatDataInterface } from "./file-es";
 import * as path from "path";
-import readFile from "./utils/read-file";
+import { readFileSync } from "./utils/read-file";
 import { AST_NODE_TYPES } from "@typescript-eslint/typescript-estree";
 import fileESCache from "./file-es-cache";
 import { FileESManagerOptions, TreeData, ExportItem } from "./dto";
 import FileEsPathHelper from "./file-es-path-helper";
-import * as process from "process";
 
 interface FileESManagerInterface {
   filename: string;
@@ -20,21 +19,20 @@ interface FileESManagerInterface {
     filename: string,
     exportItem: ExportItem,
     container: TreeData<FileES>[]
-  ): Promise<void>;
+  ): void;
   /** 检查新的filename是否存在，存在继续walkTree */
   walkTreeNext(
     filename: string,
     source: string,
     exportItem: ExportItem,
     container: TreeData<FileES>[]
-  ): Promise<void>;
+  ): void;
 }
 class FileESManager implements FileESManagerInterface {
   filename: string;
   flatImportList: FileES[] = [];
   treeImportList: TreeData<FileES>[] = [];
   readonly pathHelper: FileEsPathHelper;
-  // @ts-ignore
   file: FileES;
   static SUPPORTED_EXT = [
     ".js",
@@ -56,25 +54,23 @@ class FileESManager implements FileESManagerInterface {
       alias: options.alias,
       supportedExt: FileESManager.SUPPORTED_EXT,
     });
-    process.nextTick(async () => {
-      this.file = await this.createFileES(this.filename);
-    });
+    this.file = this.createFileES(this.filename);
   }
 
-  async createFileES(filename: string) {
+  createFileES(filename: string) {
     if (fileESCache.has(filename)) {
       return fileESCache.get(filename)!;
     }
     let fileContent: string | undefined;
     if (FileES.isSupportedFile(filename)) {
-      fileContent = await readFile(filename);
+      fileContent = readFileSync(filename);
     }
     const fileES = new FileES({ fileContent, filename });
     return fileESCache.set(filename, fileES);
   }
 
-  async getTerminalImportList() {
-    await this.walkRoot(this.filename, this.treeImportList);
+  getTerminalImportList() {
+    this.walkRoot(this.filename, this.treeImportList);
   }
 
   updateImportList(item: FileES, container: TreeData<FileES>[]) {
@@ -98,7 +94,7 @@ class FileESManager implements FileESManagerInterface {
   handleUnsupportedAstFile(file: FileES, container: TreeData<FileES>[]) {
     this.updateImportList(file, container);
   }
-  async walkTreeNext(
+  walkTreeNext(
     filename: string,
     source: string,
     exportItem: ExportItem,
@@ -109,15 +105,12 @@ class FileESManager implements FileESManagerInterface {
       source
     );
     if (sourceFilename) {
-      await this.walkTree(sourceFilename, exportItem, container);
+      this.walkTree(sourceFilename, exportItem, container);
     }
   }
 
-  async walkRoot(
-    filename: string,
-    container: TreeData<FileES>[]
-  ): Promise<void> {
-    const childFileES = await this.createFileES(filename);
+  walkRoot(filename: string, container: TreeData<FileES>[]) {
+    const childFileES = this.createFileES(filename);
 
     if (this.isUnsupportedAstFile(childFileES)) {
       return this.handleUnsupportedAstFile(childFileES, container);
@@ -137,26 +130,21 @@ class FileESManager implements FileESManagerInterface {
           source!
         );
         if (importFilename) {
-          const nextFileES = await this.createFileES(importFilename);
-          if (nextFileES) this.updateImportList(nextFileES, container);
+          const nextFileES = this.createFileES(importFilename);
+          this.updateImportList(nextFileES, container);
         }
       } else {
-        await this.walkTreeNext(
-          filename,
-          source!,
-          list[i] as ExportItem,
-          container
-        );
+        this.walkTreeNext(filename, source!, list[i] as ExportItem, container);
       }
     }
   }
 
-  async walkTree(
+  walkTree(
     filename: string,
     exportItem: ExportItem,
     container: TreeData<FileES>[]
-  ): Promise<void> {
-    const childFileES = await this.createFileES(filename);
+  ) {
+    const childFileES = this.createFileES(filename);
     if (this.isUnsupportedAstFile(childFileES)) {
       return this.handleUnsupportedAstFile(childFileES, container);
     }
@@ -173,7 +161,7 @@ class FileESManager implements FileESManagerInterface {
     }
     /** 在export中找到导出 */
     if (childExportItem?.source) {
-      return await this.walkTreeNext(
+      return this.walkTreeNext(
         filename,
         childExportItem.source,
         {
@@ -191,7 +179,7 @@ class FileESManager implements FileESManagerInterface {
       const importItem = childFileES.getImportByName(childExportItem.name);
       if (importItem) {
         /** 透传export */
-        return await this.walkTreeNext(
+        return this.walkTreeNext(
           filename,
           importItem.source!,
           importItem as ExportItem,
@@ -200,13 +188,13 @@ class FileESManager implements FileESManagerInterface {
       }
       /** 未找到importItem，则认为此childFileES为依赖项 */
       const newContainer = this.updateImportList(childFileES, container);
-      return await this.walkRoot(childFileES.filename, newContainer);
+      return this.walkRoot(childFileES.filename, newContainer);
     }
     /** 在import * from "xx"中查找导出 */
     const implicitExportList = childFileES.getImplicitExportList();
     if (implicitExportList.length > 0) {
       for (let i = 0; i < implicitExportList.length; i++) {
-        await this.walkTreeNext(
+        this.walkTreeNext(
           filename,
           implicitExportList[i].source!,
           exportItem,

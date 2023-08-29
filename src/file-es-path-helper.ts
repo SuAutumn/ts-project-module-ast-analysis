@@ -3,6 +3,20 @@ import fs from "fs";
 import process from "process";
 import { FileESManagerOptions, FileESPathHelperConstructorParams } from "./dto";
 
+const SUPPORTED_EXT = [
+  ".js",
+  ".jsx",
+  ".ts",
+  ".tsx",
+  ".json",
+  ".less",
+  ".scss",
+  ".css",
+  ".png",
+  ".svg",
+  ".jpeg",
+];
+
 class FileESPathHelper {
   /** 路径别名 */
   readonly alias: NonNullable<FileESPathHelperConstructorParams["alias"]>;
@@ -12,7 +26,7 @@ class FileESPathHelper {
   >;
   constructor({
     alias = {},
-    supportedExt = [],
+    supportedExt = SUPPORTED_EXT,
   }: FileESPathHelperConstructorParams) {
     this.alias = alias;
     this.supportedExt = supportedExt;

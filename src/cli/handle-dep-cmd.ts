@@ -2,25 +2,20 @@ import { FileESManager } from "../index";
 import { TreeData } from "../dto";
 import { FileES } from "@";
 
-export interface HandleDepProps {
+export interface HandleDepParams {
   filename: string;
   alias: string;
 }
 
-const handleDep = async ({ filename, ...options }: HandleDepProps) => {
+const handleDep = ({ filename, ...options }: HandleDepParams) => {
   const esManager = new FileESManager(filename, {
     alias: {
       "@": options.alias,
     },
   });
-  await esManager.getTerminalImportList();
-  // console.log(
-  //   JSON.stringify(logTreeData(esManager.treeImportList), undefined, "  ")
-  // );
+  esManager.getTerminalImportList();
   console.log(
-    esManager.file?.getDefaultExport(),
-    esManager.file?.getVariableList(),
-    esManager.file?.ast
+    JSON.stringify(logTreeData(esManager.treeImportList), undefined, "  ")
   );
   // matchI18nKeys(esManager.flatImportList);
 };
