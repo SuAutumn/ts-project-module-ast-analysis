@@ -53,9 +53,11 @@ class ReactRouterConfigParser
 
   getRoutesValue(): Config[] | undefined {
     const defaultExport = this.file.getDefaultExport()?.name;
-    const routesExpression = this.getDeclarationAst(defaultExport!)?.init;
-    if (is(routesExpression, AST_NODE_TYPES.ArrayExpression)) {
-      return this.as.handleArrayExpression(routesExpression);
+    if (defaultExport) {
+      const routesExpression = this.getDeclarationAst(defaultExport)?.init;
+      if (is(routesExpression, AST_NODE_TYPES.ArrayExpression)) {
+        return this.as.handleArrayExpression(routesExpression);
+      }
     }
   }
 
