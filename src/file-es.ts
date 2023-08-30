@@ -8,6 +8,7 @@ import filterAstStatement from "./utils/filter-ast-statement";
 import handleAstStatement from "./utils/handle-ast-statement";
 import { is } from "./utils/asset-ast-statement";
 import * as path from "path";
+import { FileESConstructorParams } from "./dto";
 
 export interface ImportDataInterface {
   nameList: {
@@ -46,9 +47,12 @@ type ExportDeclaration =
   | TSESTree.ExportDefaultDeclaration
   | TSESTree.ExportNamedDeclaration;
 
+/**
+ * 文件描述
+ */
 class FileES implements FileESInterface {
   readonly filename: string;
-  readonly fileContent?: string;
+  readonly fileContent: string;
   ast: TSESTree.Program | null;
   exportList: ExportDataInterface[] = [];
   importList: ImportDataInterface[] = [];
@@ -57,9 +61,9 @@ class FileES implements FileESInterface {
   filter = filterAstStatement;
   static SUPPORTED_FILE = /\.[jt]sx?$/;
 
-  constructor(options: { filename: string; fileContent?: string }) {
-    this.filename = options.filename;
-    this.fileContent = options.fileContent;
+  constructor({ filename, fileContent = "" }: FileESConstructorParams) {
+    this.filename = filename;
+    this.fileContent = fileContent;
     this.ast = this.parse();
     this.importList = this.getImportList();
     this.exportList = this.getExportList();
