@@ -1,15 +1,25 @@
 import FileES from "./file-es";
+import { Cache } from "./dto";
 
-class FileESCache {
+/**
+ * 文件缓存容器
+ */
+class FileESCache implements Cache<FileES, string> {
   private cache: Record<string, FileES> = {};
-  getCacheFileES(filename: string) {
-    if (this.cache[filename]) return this.cache[filename];
+
+  get(filename: string) {
+    if (this.has(filename)) return this.cache[filename];
   }
-  updateCacheFileES(filename: string, fileES: FileES) {
-    if (this.getCacheFileES(filename) !== fileES) {
+
+  set(filename: string, fileES: FileES) {
+    if (this.get(filename) !== fileES) {
       this.cache[filename] = fileES;
     }
     return fileES;
+  }
+
+  has(filename: string): boolean {
+    return Boolean(this.cache[filename]);
   }
 }
 
