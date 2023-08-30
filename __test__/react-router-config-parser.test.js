@@ -3,8 +3,7 @@ import { PathHelper } from "../src/index";
 import ReactRouterConfigParser from "../src/react-router-config-parser";
 describe("测试React Router配置文件", () => {
   it("解析路由配置数据", async () => {
-    process.chdir("./test-project");
-    const filename = path.resolve("./router/index.tsx");
+    const filename = path.resolve("./test-project/router/index.tsx");
     const pathHelper = new PathHelper({
       alias: {
         "@": path.resolve("./test-project"),

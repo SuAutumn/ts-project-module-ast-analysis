@@ -50,16 +50,17 @@ const handleReactRouterCmd = (params: HandleDepParams) => {
     ({ manager, route }: { manager: FileESManager; route: Config }) => {
       manager.getTerminalImportList();
       const keys = matchI18nKeys(manager.flatImportList);
+      console.log(route);
       recorder.push({
         path: route.path.value.replace(/['"]/g, ""),
-        componentId: route.componentId.value.replace(/['"]/g, ""),
+        componentId: route.componentId?.value.replace(/['"]/g, ""),
         filename: manager.filename.replace(process.cwd(), ""),
         keys,
       });
     }
   );
   process.on("exit", () => {
-    console.log(JSON.stringify(recorder));
+    console.log(JSON.stringify(recorder, undefined, "  "));
   });
   parser.parse();
 };

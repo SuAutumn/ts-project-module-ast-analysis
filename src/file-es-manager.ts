@@ -78,6 +78,19 @@ class FileESManager implements FileESManagerInterface {
   handleUnsupportedAstFile(file: FileES, container: TreeData<FileES>[]) {
     this.updateImportList(file, container);
   }
+  /** The walk tree traverse paths */
+  walkPaths(data: TreeData<FileES>[]): FileES[] {
+    const length = data.length;
+    const last = data[length - 1];
+    if (last) {
+      let childLast: FileES[] = [];
+      if (last.children && last.children.length > 0) {
+        childLast = this.walkPaths(last.children);
+      }
+      return [last.data, ...childLast];
+    }
+    return [];
+  }
   walkTreeNext(
     filename: string,
     source: string,
@@ -88,7 +101,11 @@ class FileESManager implements FileESManagerInterface {
       filename,
       source
     );
-    if (sourceFilename) {
+    const paths = this.walkPaths(this.treeImportList).map(
+      (item) => item.filename
+    );
+    /** 出现循环引用则不需要继续walk */
+    if (sourceFilename && !paths.includes(sourceFilename)) {
       this.walkTree(sourceFilename, exportItem, container);
     }
   }

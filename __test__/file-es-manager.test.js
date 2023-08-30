@@ -3,13 +3,12 @@ import * as path from "path";
 import { PathHelper } from "../lib";
 
 describe("File es manager module tester", () => {
-  const filename = "test-project/index.tsx";
+  const filename = "./test-project/index.tsx";
   const pathHelper = new PathHelper({
-    alias: { "@": "./" },
+    alias: { "@": path.resolve("./") },
   });
 
   it("Test walkTree method", () => {
-    const absFilename = path.resolve(filename);
     const m = new FileESManager(filename, pathHelper);
     m.getTerminalImportList();
     console.log(

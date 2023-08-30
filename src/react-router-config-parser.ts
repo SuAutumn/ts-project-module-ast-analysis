@@ -54,7 +54,14 @@ class ReactRouterConfigParser
   getRoutesValue(): Config[] | undefined {
     const defaultExport = this.file.getDefaultExport()?.name;
     if (defaultExport) {
-      const routesExpression = this.getDeclarationAst(defaultExport)?.init;
+      let routesExpression: TSESTree.Node | null | undefined;
+      if (defaultExport === "default") {
+        routesExpression = this.astFilter.filter(this.file.ast?.body!, [
+          AST_NODE_TYPES.ExportDefaultDeclaration,
+        ])[0]?.declaration;
+      } else {
+        routesExpression = this.getDeclarationAst(defaultExport)?.init;
+      }
       if (is(routesExpression, AST_NODE_TYPES.ArrayExpression)) {
         return this.as.handleArrayExpression(routesExpression);
       }
@@ -92,14 +99,15 @@ class ReactRouterConfigParser
 
   private handleFile(config: Config[]) {
     config.forEach((conf) => {
-      if (typeof conf.component !== "string") {
-        switch (conf.component.type) {
+      const component = conf.component || conf.render;
+      if (component && typeof component !== "string") {
+        switch (component.type) {
           case "Identifier":
-            this.handleReactLazyImportComponent(conf.component.name, conf);
+            this.handleReactLazyImportComponent(component.name, conf);
             break;
           case "ArrowFunctionExpression":
           case "FunctionExpression":
-            this.handleReactLazyImportComponent(conf.component.body, conf);
+            this.handleReactLazyImportComponent(component.body, conf);
             break;
         }
       }

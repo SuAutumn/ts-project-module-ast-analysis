@@ -30,8 +30,9 @@ export interface FileESPathHelperConstructorParams {
 
 interface BaseConfig<T> {
   path: { value: string; type: "Literal" };
-  componentId: { value: string; type: "Literal" };
-  component: T;
+  componentId?: { value: string; type: "Literal" };
+  component?: T;
+  render?: T;
   routes?: Config[];
 }
 
