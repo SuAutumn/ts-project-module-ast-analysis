@@ -187,7 +187,6 @@ class HandleAstStatement {
           type: node.type,
           name,
         };
-        break;
       case AST_NODE_TYPES.Literal:
         const value = this.handleLiteral(node);
         return { value, type: node.type };

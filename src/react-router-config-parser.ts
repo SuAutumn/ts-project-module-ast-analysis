@@ -1,31 +1,32 @@
-import { AST_NODE_TYPES } from "@typescript-eslint/typescript-estree";
+import { EventEmitter } from "node:events";
+import { AST_NODE_TYPES, TSESTree } from "@typescript-eslint/typescript-estree";
 import FileESManager from "./file-es-manager";
 import handleAstStatement from "./utils/handle-ast-statement";
 import FileESPathHelper from "./file-es-path-helper";
-import path from "path";
 import FileES from "./file-es";
 import { readFileSync } from "./utils/read-file";
+import filterAstStatement from "./utils/filter-ast-statement";
+import { is } from "./utils/asset-ast-statement";
+import { Config } from "./dto";
 
-interface BaseConfig<T> {
-  path: { value: string; type: "Literal" };
-  componentId: { value: string; type: "Literal" };
-  component: T;
-  routes?: Config[];
+interface ReactRouterConfigParserInterface extends EventEmitter {
+  parse(): void;
+  on(
+    eventName: "route",
+    listener: (args: { manager: FileESManager; route: Config }) => void
+  ): this;
 }
 
-type Config =
-  | BaseConfig<string>
-  | BaseConfig<{ name: string; type: "Identifier" }>
-  | BaseConfig<{
-      body: string;
-      type: "ArrowFunctionExpression" | "FunctionExpression";
-    }>;
-
-class ReactRouterConfigParser {
+class ReactRouterConfigParser
+  extends EventEmitter
+  implements ReactRouterConfigParserInterface
+{
   readonly file: FileES;
   readonly as: typeof handleAstStatement;
   readonly pathHelper: FileESPathHelper;
+  readonly astFilter = filterAstStatement;
   constructor(filename: string, pathHelper: FileESPathHelper) {
+    super();
     this.file = new FileES({ filename, fileContent: readFileSync(filename) });
     this.pathHelper = pathHelper;
     this.as = handleAstStatement;
@@ -33,56 +34,57 @@ class ReactRouterConfigParser {
 
   private getDeclarationAst(name: string) {
     const file = this.file;
-    if (file) {
-      const routesAst = file.filter
-        .filter(file.ast!.body, [AST_NODE_TYPES.VariableDeclaration])
-        .map((node) => {
-          return file.filter
-            .filter(node.declarations, [AST_NODE_TYPES.VariableDeclarator])
-            .filter((declarator) => {
-              return (
-                declarator.id.type === AST_NODE_TYPES.Identifier &&
-                declarator.id.name === name
-              );
-            })[0];
-        })
-        .filter((declarator) => Boolean(declarator))[0];
-      return routesAst.init;
+    if (file && file.ast) {
+      return this.astFilter
+        .filter(file.ast.body, [AST_NODE_TYPES.VariableDeclaration])
+        .reduce((prev, curr) => {
+          const declarators = this.astFilter.filter(curr.declarations, [
+            AST_NODE_TYPES.VariableDeclarator,
+          ]);
+          return [...prev, ...declarators];
+        }, [] as TSESTree.VariableDeclarator[])
+        .find((node) => {
+          if (is(node.id, AST_NODE_TYPES.Identifier)) {
+            return node.id.name === name;
+          }
+        });
     }
   }
 
-  private getRoutesValue(): Config[] | undefined {
+  getRoutesValue(): Config[] | undefined {
     const defaultExport = this.file.getDefaultExport()?.name;
-    const routesExpression = this.getDeclarationAst(defaultExport!);
-    if (routesExpression?.type === AST_NODE_TYPES.ArrayExpression) {
+    const routesExpression = this.getDeclarationAst(defaultExport!)?.init;
+    if (is(routesExpression, AST_NODE_TYPES.ArrayExpression)) {
       return this.as.handleArrayExpression(routesExpression);
     }
   }
 
-  private handleIdentifierComponent(
-    config: BaseConfig<{ type: "Identifier"; name: string }>
-  ) {
-    const ast = this.getDeclarationAst(config.component.name);
-    if (ast) {
+  private createFileESManager(filename: string) {
+    const innerFilename = this.pathHelper.resolveImportFilename(
+      this.file.filename,
+      filename
+    );
+    if (innerFilename) {
+      return new FileESManager(innerFilename, this.pathHelper);
+    }
+  }
+
+  private handleReactLazyImportComponent(name: string, route: Config) {
+    let filename: string | undefined;
+    const importAst = this.file.getImportByName(name);
+    const ast = this.getDeclarationAst(name)?.init;
+    if (importAst) {
+      filename = importAst.source;
+    } else if (ast) {
       const rawCode = this.file.fileContent.slice(...ast.range);
-      const rawFilename = rawCode.match(/import\(["'](.+)["']\)/)?.[1];
-      if (rawFilename) {
-        console.log("debugger", this.file.filename, rawFilename);
-        const filename = this.pathHelper.resolveImportFilename(
-          this.file.filename,
-          rawFilename
-        );
-        if (filename) {
-          const manager = new FileESManager(filename, {
-            alias: { "@": path.resolve("./src") },
-          });
-          manager.getTerminalImportList();
-          console.log(config.component.name);
-          console.log(manager.flatImportList.map((item) => item.filename));
-        }
-      }
+      /** 获取react lazy import文件地址 */
+      filename = rawCode.match(/import\(["'](.+)["']\)/)?.[1];
     } else {
-      console.log(`Not found ${config.component.name} variable declarator.`);
+      // console.log(`Not found ${name} variable declarator.`);
+    }
+    if (filename) {
+      const manager = this.createFileESManager(filename);
+      this.emit("route", { manager, route });
     }
   }
 
@@ -91,9 +93,11 @@ class ReactRouterConfigParser {
       if (typeof conf.component !== "string") {
         switch (conf.component.type) {
           case "Identifier":
-            this.handleIdentifierComponent(
-              conf as BaseConfig<{ name: string; type: "Identifier" }>
-            );
+            this.handleReactLazyImportComponent(conf.component.name, conf);
+            break;
+          case "ArrowFunctionExpression":
+          case "FunctionExpression":
+            this.handleReactLazyImportComponent(conf.component.body, conf);
             break;
         }
       }
@@ -103,7 +107,7 @@ class ReactRouterConfigParser {
     });
   }
 
-  runRoutesFile() {
+  parse() {
     const config = this.getRoutesValue();
     if (config) {
       this.handleFile(config);

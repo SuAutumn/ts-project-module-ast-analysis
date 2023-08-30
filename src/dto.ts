@@ -27,3 +27,18 @@ export interface FileESPathHelperConstructorParams {
   alias?: Record<string, string>;
   supportedExt?: string[];
 }
+
+interface BaseConfig<T> {
+  path: { value: string; type: "Literal" };
+  componentId: { value: string; type: "Literal" };
+  component: T;
+  routes?: Config[];
+}
+
+export type Config =
+  | BaseConfig<string>
+  | BaseConfig<{ name: string; type: "Identifier" }>
+  | BaseConfig<{
+      body: string;
+      type: "ArrowFunctionExpression" | "FunctionExpression";
+    }>;

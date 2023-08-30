@@ -1,14 +1,14 @@
 import FileES, { ExportFlatDataInterface } from "./file-es";
-import * as path from "path";
 import { readFileSync } from "./utils/read-file";
 import { AST_NODE_TYPES } from "@typescript-eslint/typescript-estree";
 import fileESCache from "./file-es-cache";
-import { FileESManagerOptions, TreeData, ExportItem } from "./dto";
-import FileEsPathHelper from "./file-es-path-helper";
+import { TreeData, ExportItem } from "./dto";
+import FileESPathHelper from "./file-es-path-helper";
 
 interface FileESManagerInterface {
   filename: string;
   file: FileES;
+  pathHelper: FileESPathHelper;
   /** 通过分析导入导出依赖，获得模块的最终文件的依赖 */
   flatImportList: FileES[];
   treeImportList: TreeData<FileES>[];
@@ -30,30 +30,14 @@ interface FileESManagerInterface {
 }
 class FileESManager implements FileESManagerInterface {
   filename: string;
+  readonly file: FileES;
   flatImportList: FileES[] = [];
   treeImportList: TreeData<FileES>[] = [];
-  readonly pathHelper: FileEsPathHelper;
-  file: FileES;
-  static SUPPORTED_EXT = [
-    ".js",
-    ".jsx",
-    ".ts",
-    ".tsx",
-    ".json",
-    ".less",
-    ".scss",
-    ".css",
-    ".png",
-    ".svg",
-    ".jpeg",
-  ];
+  readonly pathHelper: FileESPathHelper;
 
-  constructor(filename: string, options: FileESManagerOptions = {}) {
-    this.filename = path.resolve(filename);
-    this.pathHelper = new FileEsPathHelper({
-      alias: options.alias,
-      supportedExt: FileESManager.SUPPORTED_EXT,
-    });
+  constructor(filename: string, pathHelper: FileESPathHelper) {
+    this.pathHelper = pathHelper;
+    this.filename = this.pathHelper.replaceAliasPath(filename);
     this.file = this.createFileES(this.filename);
   }
 
