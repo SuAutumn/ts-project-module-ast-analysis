@@ -27,7 +27,7 @@ class FileESPathHelper {
   constructor({
     alias = {},
     supportedExt = SUPPORTED_EXT,
-  }: FileESPathHelperConstructorParams) {
+  }: FileESPathHelperConstructorParams = {}) {
     this.alias = alias;
     this.supportedExt = supportedExt;
   }
