@@ -1,6 +1,6 @@
 {
-  "name": "ts-project-module-ast-analysis",
-  "version": "0.0.1",
+  "name": "@gw/ts-project-module-ast-analysis",
+  "version": "0.0.2",
   "main": "lib/index.js",
   "types": "lib/@types",
   "license": "MIT",
@@ -10,7 +10,7 @@
     "build": "tsc"
   },
   "dependencies": {
-    "@typescript-eslint/typescript-estree": "^5.60.1",
+    "@typescript-eslint/typescript-estree": "5.60.1",
     "yargs": "^17.7.2"
   },
   "devDependencies": {

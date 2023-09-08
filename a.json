@@ -1,0 +1,30 @@
+[
+  {
+    "path": "/login",
+    "filename": "/src/pages/index/index.tsx",
+    "keys": {
+      "/src/pages/index/components/pwdForm/index.tsx": [
+        "enter_email_or_username_tip",
+        "China",
+        "correct_mobile_number",
+        "placeholder_enter_phone_number",
+        "enter_password"
+      ],
+      "/src/hooks/useEntry/index.ts": [
+        "no_permission"
+      ],
+      "/src/pages/index/components/verifyCodeForm/index.tsx": [
+        "China",
+        "correct_mobile_number",
+        "placeholder_enter_phone_number",
+        "enter_verification_code",
+        "6-digit_integer_verification_code",
+        "placeholder_enter_verification_code"
+      ],
+      "/src/hooks/useSmsCode/index.ts": [
+        "get_verification_code",
+        "resend"
+      ]
+    }
+  }
+]
