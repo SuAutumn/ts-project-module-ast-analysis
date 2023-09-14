@@ -10,7 +10,13 @@ describe("测试React Router配置文件", () => {
       },
     });
     const parser = new ReactRouterConfigParser(filename, pathHelper);
-    const routeConfig = parser.getRoutesValue();
-    expect(routeConfig instanceof Array).toBe(true);
+    const config = parser.getRouteConfig();
+    expect(config instanceof Array).toBe(true);
+    // console.log(JSON.stringify(config, undefined, "  "));
+    parser.on("route", ({ manager, route }) => {
+      console.log(route);
+      console.log(manager);
+    });
+    parser.parse();
   });
 });

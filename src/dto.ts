@@ -1,4 +1,4 @@
-import { AST_NODE_TYPES } from "@typescript-eslint/typescript-estree";
+import { AST_NODE_TYPES, TSESTree } from "@typescript-eslint/typescript-estree";
 
 export interface TreeData<T> {
   data: T;
@@ -28,18 +28,36 @@ export interface FileESPathHelperConstructorParams {
   supportedExt?: string[];
 }
 
-interface BaseConfig<T> {
-  path: { value: string; type: "Literal" };
-  componentId?: { value: string; type: "Literal" };
+export interface BaseConfig<T> {
+  path?: SimpleObjectNode<AST_NODE_TYPES.Literal>;
+  componentId?: SimpleObjectNode<AST_NODE_TYPES.Literal>;
   component?: T;
   render?: T;
   routes?: Config[];
+  type?: AST_NODE_TYPES.SpreadElement;
+  value?: SimpleObjectNode<AST_NODE_TYPES.Identifier>;
 }
 
-export type Config =
-  | BaseConfig<string>
-  | BaseConfig<{ name: string; type: "Identifier" }>
-  | BaseConfig<{
-      body: string;
-      type: "ArrowFunctionExpression" | "FunctionExpression";
-    }>;
+export type Config = BaseConfig<
+  | SimpleObjectNode<
+      | AST_NODE_TYPES.Identifier
+      | AST_NODE_TYPES.FunctionExpression
+      | AST_NODE_TYPES.ArrowFunctionExpression
+    >
+  | ReturnHandleCallExpression
+>;
+
+// ast types
+export const NOT_HANDLED = Symbol("Not handled");
+export type SimpleObjectNode<
+  T extends AST_NODE_TYPES = AST_NODE_TYPES,
+  SubType extends AST_NODE_TYPES = AST_NODE_TYPES
+> = {
+  type: T;
+  value: undefined | string | Symbol | SimpleObjectNode<SubType>;
+};
+export type ReturnHandleCallExpression = {
+  type: AST_NODE_TYPES.CallExpression;
+  callee: SimpleObjectNode | ReturnHandleCallExpression;
+  arguments: (SimpleObjectNode | ReturnHandleCallExpression)[];
+};

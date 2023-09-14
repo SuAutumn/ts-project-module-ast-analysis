@@ -1,6 +1,9 @@
+import React, { lazy } from "react";
 import App from "../index";
+import my from "./my-router/my";
 
 const Home = React.lazy(() => import("../card"));
+const A = lazy(() => import("../card"));
 
 const routes = [
   {
@@ -18,6 +21,11 @@ const routes = [
         componentId: "component",
         component: () => <div>Component</div>,
       },
+      {
+        path: "/home/A",
+        component: A,
+      },
+      ...my,
     ],
   },
 ];

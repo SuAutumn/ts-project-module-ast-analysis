@@ -10,7 +10,7 @@ import { Config } from "../dto";
 import process from "process";
 
 interface I18nKeysTracker {
-  path: string;
+  path?: string;
   componentId?: string;
   filename: string;
   keys: {
@@ -52,8 +52,8 @@ const handleReactRouterCmd = (params: HandleDepParams) => {
       const keys = matchI18nKeys(manager.flatImportList);
       console.log(route);
       recorder.push({
-        path: route.path.value.replace(/['"]/g, ""),
-        componentId: route.componentId?.value.replace(/['"]/g, ""),
+        path: route.path?.value as string,
+        componentId: route.componentId?.value as string,
         filename: manager.filename.replace(process.cwd(), ""),
         keys,
       });

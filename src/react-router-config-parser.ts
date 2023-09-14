@@ -8,13 +8,18 @@ import { readFileSync } from "./utils/read-file";
 import filterAstStatement from "./utils/filter-ast-statement";
 import { is } from "./utils/asset-ast-statement";
 import { Config } from "./dto";
+import isString from "./utils/is-string";
 
-interface ReactRouterConfigParserInterface extends EventEmitter {
+interface ReactRouterConfigParserInterface {
   parse(): void;
   on(
     eventName: "route",
-    listener: (args: { manager: FileESManager; route: Config }) => void
+    listener: (props: { manager: FileESManager; route: Config }) => void
   ): this;
+  emit(
+    eventName: "route",
+    props: { manager: FileESManager; route: Config }
+  ): boolean;
 }
 
 class ReactRouterConfigParser
@@ -32,6 +37,7 @@ class ReactRouterConfigParser
     this.as = handleAstStatement;
   }
 
+  /** 找到和name匹配的VariableDeclarator */
   private getDeclarationAst(name: string) {
     const file = this.file;
     if (file && file.ast) {
@@ -51,20 +57,62 @@ class ReactRouterConfigParser
     }
   }
 
-  getRoutesValue(): Config[] | undefined {
+  /** 获取路由数组对象 */
+  handleArrayRouteConfig(): Config[] | undefined {
     const defaultExport = this.file.getDefaultExport()?.name;
     if (defaultExport) {
       let routesExpression: TSESTree.Node | null | undefined;
       if (defaultExport === "default") {
-        routesExpression = this.astFilter.filter(this.file.ast?.body!, [
+        /** export default [...xxx] */
+        routesExpression = this.astFilter.filter(this.file.ast!.body, [
           AST_NODE_TYPES.ExportDefaultDeclaration,
         ])[0]?.declaration;
       } else {
         routesExpression = this.getDeclarationAst(defaultExport)?.init;
       }
       if (is(routesExpression, AST_NODE_TYPES.ArrayExpression)) {
-        return this.as.handleArrayExpression(routesExpression);
+        return this.as.handleArrayExpression(routesExpression) as Config[];
       }
+    }
+  }
+
+  /** 处理Spread元素的RouteConfig */
+  handleSpreadRouteConfig(config: Config[]): Config[] {
+    let newConfig: Config[] = [];
+    config.forEach((conf) => {
+      if (conf.value && isString(conf.value.value)) {
+        const filename = this.getImportFilename(conf.value.value);
+        let resolveFilename: string | undefined;
+        if (filename) {
+          resolveFilename = this.pathHelper.resolveImportFilename(
+            this.file.filename,
+            filename
+          );
+        }
+        if (resolveFilename) {
+          const parser = new ReactRouterConfigParser(
+            resolveFilename,
+            this.pathHelper
+          );
+          const subconfig = parser.handleArrayRouteConfig();
+          if (subconfig) {
+            newConfig.push(...subconfig);
+          }
+        }
+      } else {
+        if (conf.routes) {
+          conf.routes = this.handleSpreadRouteConfig(conf.routes);
+        }
+        newConfig.push(conf);
+      }
+    });
+    return newConfig;
+  }
+
+  getRouteConfig() {
+    const config = this.handleArrayRouteConfig();
+    if (config) {
+      return this.handleSpreadRouteConfig(config);
     }
   }
 
@@ -78,38 +126,45 @@ class ReactRouterConfigParser
     }
   }
 
-  private handleReactLazyImportComponent(name: string, route: Config) {
-    let filename: string | undefined;
+  private getImportFilename(name: string) {
     const importAst = this.file.getImportByName(name);
     const ast = this.getDeclarationAst(name)?.init;
     if (importAst) {
-      filename = importAst.source;
+      return importAst.source;
     } else if (ast) {
       const rawCode = this.file.fileContent.slice(...ast.range);
       /** 获取react lazy import文件地址 */
-      filename = rawCode.match(/import\(["'](.+)["']\)/)?.[1];
-    } else {
-      // console.log(`Not found ${name} variable declarator.`);
+      return rawCode.match(/import\(["'](.+)["']\)/)?.[1];
     }
-    if (filename) {
-      const manager = this.createFileESManager(filename);
-      this.emit("route", { manager, route });
-    }
+    console.log(`Not found ${name} variable declarator.`);
   }
 
-  private handleFile(config: Config[]) {
+  handleFile(config: Config[]) {
     config.forEach((conf) => {
       const component = conf.component || conf.render;
-      if (component && typeof component !== "string") {
+      let filename: string | undefined;
+      if (component) {
         switch (component.type) {
           case "Identifier":
-            this.handleReactLazyImportComponent(component.name, conf);
-            break;
           case "ArrowFunctionExpression":
           case "FunctionExpression":
-            this.handleReactLazyImportComponent(component.body, conf);
+            if (isString(component.value)) {
+              filename = this.getImportFilename(component.value);
+            }
+            break;
+          case AST_NODE_TYPES.CallExpression:
+            const [arg] = component.arguments;
+            if (arg.type === AST_NODE_TYPES.Identifier && isString(arg.value)) {
+              filename = this.getImportFilename(arg.value);
+            }
             break;
         }
+      }
+      if (filename) {
+        this.emit("route", {
+          manager: this.createFileESManager(filename),
+          route: conf,
+        });
       }
       if (conf.routes) {
         this.handleFile(conf.routes);
@@ -118,7 +173,7 @@ class ReactRouterConfigParser
   }
 
   parse() {
-    const config = this.getRoutesValue();
+    const config = this.getRouteConfig();
     if (config) {
       this.handleFile(config);
     }
