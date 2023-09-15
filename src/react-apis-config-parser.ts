@@ -98,12 +98,10 @@ class ReactApisConfigParse implements ReactApisConfigParseInterface {
         filename: importPath!,
         fileContent: readFileSync(importPath!),
       });
-      const actionExpression = this.getDefaultExportObject(
-        importFile.ast?.body
-      );
+      const actionExpression = this.getDefaultExportObject(importFile);
       return [actionExpression, importFile];
     }
-    return [, undefined];
+    return [];
   }
 
   async getActions(controllerName: string, file: FileES = this.file) {
@@ -181,13 +179,38 @@ class ReactApisConfigParse implements ReactApisConfigParseInterface {
     return apiControllers;
   }
 
-  private getDefaultExportObject(body?: TSESTree.ProgramStatement[]) {
-    if (body) {
-      const apisExpression = this.astFilter.filter(body, [
+  /** 找到和name匹配的VariableDeclarator */
+  private getNamedDeclaration(name: string) {
+    const file = this.file;
+    return this.astFilter
+      .filter(file.ast?.body, [AST_NODE_TYPES.VariableDeclaration])
+      .reduce((prev, curr) => {
+        const declarators = this.astFilter.filter(curr.declarations, [
+          AST_NODE_TYPES.VariableDeclarator,
+        ]);
+        return [...prev, ...declarators];
+      }, [] as TSESTree.VariableDeclarator[])
+      .find((node) => {
+        if (is(node.id, AST_NODE_TYPES.Identifier)) {
+          return node.id.name === name;
+        }
+      });
+  }
+
+  private getDefaultExportObject(file?: FileES) {
+    if (file) {
+      const apisExpression = this.astFilter.filter(file.ast?.body, [
         AST_NODE_TYPES.ExportDefaultDeclaration,
       ])[0]?.declaration;
       if (is(apisExpression, AST_NODE_TYPES.ObjectExpression)) {
         return apisExpression;
+      }
+      if (is(apisExpression, AST_NODE_TYPES.Identifier)) {
+        const node = this.getNamedDeclaration(apisExpression.name);
+        if (is(node?.init, AST_NODE_TYPES.ObjectExpression)) {
+          return node?.init;
+        }
+        console.error("暂时不支持当前文件类型的解析");
       }
     }
   }
@@ -195,7 +218,7 @@ class ReactApisConfigParse implements ReactApisConfigParseInterface {
   async getApisValue() {
     const defaultExport = this.file.getDefaultExport()?.name;
     if (defaultExport) {
-      const apisExpression = this.getDefaultExportObject(this.file.ast?.body);
+      const apisExpression = this.getDefaultExportObject(this.file);
       if (apisExpression) {
         const apiConfigs = await this.getControllers(apisExpression);
         return apiConfigs;
