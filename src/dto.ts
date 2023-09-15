@@ -48,13 +48,13 @@ export type Config = BaseConfig<
 >;
 
 // ast types
-export const NOT_HANDLED = Symbol("Not handled");
+export const NOT_HANDLED = "Not handled";
 export type SimpleObjectNode<
   T extends AST_NODE_TYPES = AST_NODE_TYPES,
   SubType extends AST_NODE_TYPES = AST_NODE_TYPES
 > = {
   type: T;
-  value: undefined | string | Symbol | SimpleObjectNode<SubType>;
+  value: undefined | string | SimpleObjectNode<SubType>;
 };
 export type ReturnHandleCallExpression = {
   type: AST_NODE_TYPES.CallExpression;
