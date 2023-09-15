@@ -1,6 +1,6 @@
 import { lazy } from "react";
 
-const A = lazy(() => import("../card"));
+const A = lazy(() => import("../../card"));
 const withHoc = () => {
   return (hoc: any) => hoc;
 };
@@ -14,5 +14,6 @@ export default [
   {
     path: "/profile",
     component: withHoc()(A),
+    componentId: "profile",
   },
 ];

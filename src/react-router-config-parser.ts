@@ -1,11 +1,11 @@
 import { EventEmitter } from "node:events";
 import { AST_NODE_TYPES, TSESTree } from "@typescript-eslint/typescript-estree";
 import FileESManager from "./file-es-manager";
-import handleAstStatement from "./utils/handle-ast-statement";
+import handleAst from "./utils/handle-ast-statement";
 import FileESPathHelper from "./file-es-path-helper";
 import FileES from "./file-es";
 import { readFileSync } from "./utils/read-file";
-import filterAstStatement from "./utils/filter-ast-statement";
+import filterAst from "./utils/filter-ast-statement";
 import { is } from "./utils/asset-ast-statement";
 import { Config } from "./dto";
 import isString from "./utils/is-string";
@@ -27,34 +27,29 @@ class ReactRouterConfigParser
   implements ReactRouterConfigParserInterface
 {
   readonly file: FileES;
-  readonly as: typeof handleAstStatement;
   readonly pathHelper: FileESPathHelper;
-  readonly astFilter = filterAstStatement;
   constructor(filename: string, pathHelper: FileESPathHelper) {
     super();
     this.file = new FileES({ filename, fileContent: readFileSync(filename) });
     this.pathHelper = pathHelper;
-    this.as = handleAstStatement;
   }
 
   /** 找到和name匹配的VariableDeclarator */
-  private getDeclarationAst(name: string) {
+  private getNamedDeclaration(name: string) {
     const file = this.file;
-    if (file && file.ast) {
-      return this.astFilter
-        .filter(file.ast.body, [AST_NODE_TYPES.VariableDeclaration])
-        .reduce((prev, curr) => {
-          const declarators = this.astFilter.filter(curr.declarations, [
-            AST_NODE_TYPES.VariableDeclarator,
-          ]);
-          return [...prev, ...declarators];
-        }, [] as TSESTree.VariableDeclarator[])
-        .find((node) => {
-          if (is(node.id, AST_NODE_TYPES.Identifier)) {
-            return node.id.name === name;
-          }
-        });
-    }
+    return filterAst
+      .filter(file.ast?.body, [AST_NODE_TYPES.VariableDeclaration])
+      .reduce((prev, curr) => {
+        const declarators = filterAst.filter(curr.declarations, [
+          AST_NODE_TYPES.VariableDeclarator,
+        ]);
+        return [...prev, ...declarators];
+      }, [] as TSESTree.VariableDeclarator[])
+      .find((node) => {
+        if (is(node.id, AST_NODE_TYPES.Identifier)) {
+          return node.id.name === name;
+        }
+      });
   }
 
   /** 获取路由数组对象 */
@@ -64,56 +59,46 @@ class ReactRouterConfigParser
       let routesExpression: TSESTree.Node | null | undefined;
       if (defaultExport === "default") {
         /** export default [...xxx] */
-        routesExpression = this.astFilter.filter(this.file.ast!.body, [
+        routesExpression = filterAst.filter(this.file.ast!.body, [
           AST_NODE_TYPES.ExportDefaultDeclaration,
         ])[0]?.declaration;
       } else {
-        routesExpression = this.getDeclarationAst(defaultExport)?.init;
+        routesExpression = this.getNamedDeclaration(defaultExport)?.init;
       }
       if (is(routesExpression, AST_NODE_TYPES.ArrayExpression)) {
-        return this.as.handleArrayExpression(routesExpression) as Config[];
+        return handleAst.handleArrayExpression(routesExpression) as Config[];
       }
     }
   }
 
   /** 处理Spread元素的RouteConfig */
-  handleSpreadRouteConfig(config: Config[]): Config[] {
-    let newConfig: Config[] = [];
-    config.forEach((conf) => {
-      if (conf.value && isString(conf.value.value)) {
-        const filename = this.getImportFilename(conf.value.value);
-        let resolveFilename: string | undefined;
-        if (filename) {
-          resolveFilename = this.pathHelper.resolveImportFilename(
-            this.file.filename,
-            filename
-          );
-        }
-        if (resolveFilename) {
-          const parser = new ReactRouterConfigParser(
-            resolveFilename,
-            this.pathHelper
-          );
-          const subconfig = parser.handleArrayRouteConfig();
-          if (subconfig) {
-            newConfig.push(...subconfig);
-          }
-        }
-      } else {
-        if (conf.routes) {
-          conf.routes = this.handleSpreadRouteConfig(conf.routes);
-        }
-        newConfig.push(conf);
+  handleSpreadRoute(config: Config): void {
+    if (
+      config.type === AST_NODE_TYPES.SpreadElement &&
+      config.value &&
+      isString(config.value.value)
+    ) {
+      const filename = this.getImportFilename(config.value.value);
+      let resolveFilename: string | undefined;
+      if (filename) {
+        resolveFilename = this.pathHelper.resolveImportFilename(
+          this.file.filename,
+          filename
+        );
       }
-    });
-    return newConfig;
+      if (resolveFilename) {
+        const parser = new ReactRouterConfigParser(
+          resolveFilename,
+          this.pathHelper
+        );
+        parser.on("route", (props) => this.emit("route", props));
+        parser.parse();
+      }
+    }
   }
 
   getRouteConfig() {
-    const config = this.handleArrayRouteConfig();
-    if (config) {
-      return this.handleSpreadRouteConfig(config);
-    }
+    return this.handleArrayRouteConfig();
   }
 
   private createFileESManager(filename: string) {
@@ -128,7 +113,7 @@ class ReactRouterConfigParser
 
   private getImportFilename(name: string) {
     const importAst = this.file.getImportByName(name);
-    const ast = this.getDeclarationAst(name)?.init;
+    const ast = this.getNamedDeclaration(name)?.init;
     if (importAst) {
       return importAst.source;
     } else if (ast) {
@@ -139,33 +124,44 @@ class ReactRouterConfigParser
     console.log(`Not found ${name} variable declarator.`);
   }
 
-  handleFile(config: Config[]) {
-    config.forEach((conf) => {
-      const component = conf.component || conf.render;
+  /** 解析配置，生成FileESManager */
+  parseConfig(conf: Config) {
+    const component = conf.component || conf.render;
+    if (component) {
       let filename: string | undefined;
-      if (component) {
-        switch (component.type) {
-          case "Identifier":
-          case "ArrowFunctionExpression":
-          case "FunctionExpression":
-            if (isString(component.value)) {
-              filename = this.getImportFilename(component.value);
-            }
-            break;
-          case AST_NODE_TYPES.CallExpression:
-            const [arg] = component.arguments;
-            if (arg.type === AST_NODE_TYPES.Identifier && isString(arg.value)) {
-              filename = this.getImportFilename(arg.value);
-            }
-            break;
-        }
+      switch (component.type) {
+        case AST_NODE_TYPES.Identifier:
+        case AST_NODE_TYPES.FunctionExpression:
+        case AST_NODE_TYPES.ArrowFunctionExpression:
+          if (isString(component.value)) {
+            filename = this.getImportFilename(component.value);
+          }
+          break;
+        case AST_NODE_TYPES.CallExpression:
+          const arg = component.arguments[0];
+          if (arg.type === AST_NODE_TYPES.Identifier && isString(arg.value)) {
+            filename = this.getImportFilename(arg.value);
+          }
+          break;
       }
       if (filename) {
+        return this.createFileESManager(filename);
+      }
+    }
+  }
+
+  handleFile(config: Config[]) {
+    config.forEach((conf) => {
+      const manager = this.parseConfig(conf);
+      if (manager) {
         this.emit("route", {
-          manager: this.createFileESManager(filename),
+          manager,
           route: conf,
         });
+      } else if (conf.type === AST_NODE_TYPES.SpreadElement) {
+        this.handleSpreadRoute(conf);
       }
+
       if (conf.routes) {
         this.handleFile(conf.routes);
       }

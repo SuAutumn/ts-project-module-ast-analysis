@@ -44,13 +44,15 @@ const handleReactRouterCmd = (params: HandleDepParams) => {
       alias: { "@": path.resolve(params.alias) },
     })
   );
+  // console.log(JSON.stringify(parser.getRouteConfig(), undefined, "  "));
   const recorder: I18nKeysTracker[] = [];
+  const log = [];
   parser.on(
     "route",
     ({ manager, route }: { manager: FileESManager; route: Config }) => {
       manager.getTerminalImportList();
-      const keys = matchI18nKeys(manager.flatImportList);
-      console.log(route);
+      const keys = matchI18nKeys([manager.file, ...manager.flatImportList]);
+
       recorder.push({
         path: route.path?.value as string,
         componentId: route.componentId?.value as string,

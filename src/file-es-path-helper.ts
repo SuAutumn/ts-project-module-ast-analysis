@@ -1,13 +1,14 @@
 import path from "path";
 import fs from "fs";
 import process from "process";
-import { FileESManagerOptions, FileESPathHelperConstructorParams } from "./dto";
+import { FileESPathHelperConstructorParams } from "./dto";
 
 const SUPPORTED_EXT = [
   ".js",
   ".jsx",
   ".ts",
   ".tsx",
+  ".d.ts",
   ".json",
   ".less",
   ".scss",
@@ -49,7 +50,7 @@ class FileESPathHelper {
     const aliasList = Object.keys(this.alias);
     for (const item of aliasList) {
       /** 以目录结尾 */
-      const startPath = item.slice(-1) === "/" ? `${item}` : `${item}/`;
+      const startPath = item.endsWith("/") ? `${item}` : `${item}/`;
       if (source.startsWith(startPath)) {
         return item;
       }
@@ -70,7 +71,10 @@ class FileESPathHelper {
       if (fs.existsSync(filename)) {
         return filename;
       }
-      console.log(`${filename.replace(process.cwd(), "")} not exist.`);
+      /** 处理 abc.xx 文件 */
+      return this.getSupportedExtFile(filename);
+    } else {
+      // console.log(`${target} module is not supported.`);
     }
   }
 

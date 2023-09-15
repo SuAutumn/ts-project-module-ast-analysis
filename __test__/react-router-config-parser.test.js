@@ -14,8 +14,8 @@ describe("测试React Router配置文件", () => {
     expect(config instanceof Array).toBe(true);
     // console.log(JSON.stringify(config, undefined, "  "));
     parser.on("route", ({ manager, route }) => {
-      console.log(route);
-      console.log(manager);
+      console.log(JSON.stringify(route, undefined, "  "));
+      // console.log(manager);
     });
     parser.parse();
   });

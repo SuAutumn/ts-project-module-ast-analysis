@@ -2,10 +2,10 @@ import { AST_NODE_TYPES, TSESTree } from "@typescript-eslint/typescript-estree";
 
 class FilterAstStatement {
   filter<T extends AST_NODE_TYPES = AST_NODE_TYPES>(
-    node: TSESTree.Node[],
+    node: TSESTree.Node[] | undefined | null,
     types: Array<T>
   ) {
-    return node.filter((n) => {
+    return (node || []).filter((n) => {
       return types.includes(n.type as T);
     }) as Extract<TSESTree.Node, { type: T }>[];
   }
